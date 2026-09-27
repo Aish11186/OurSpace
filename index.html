@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day Room · A quiet shared room for two</title>
+  <meta name="description" content="A private, minimal day room for two people to quietly share what they are doing throughout the day in realtime.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23B08BEB%22/></svg>">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/landing.css">
+</head>
+<body>
+
+  <!-- Firebase Missing Setup Notification Banner -->
+  <div id="firebaseBanner" class="firebase-banner" style="display: none;">
+    <span><strong>Firebase setup required:</strong> Please add your Firebase credentials to <code>js/firebase-config.js</code> or configure in browser.</span>
+    <button id="openSetupBtn" type="button">Configure in browser</button>
+  </div>
+
+  <main class="landing-wrapper">
+    <div class="landing-container">
+      
+      <!-- Header -->
+      <header class="landing-header">
+        <h1 class="landing-title">
+          hi! <span class="heart">♡</span>
+        </h1>
+        <p class="landing-subtitle">
+          a quiet space for two people to share their day in realtime.
+        </p>
+      </header>
+
+      <!-- Main Action Card -->
+      <section class="landing-card" aria-label="Room Access">
+        
+        <!-- Enter a room -->
+        <div class="enter-room-box">
+          <h2 class="section-label">
+            <span>Enter a room link</span>
+          </h2>
+          <div class="input-with-button">
+            <div class="input-field-wrap">
+              <input 
+                type="text" 
+                id="enterRoomInput" 
+                placeholder="paste room link or code here..." 
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="Room link or code"
+              >
+            </div>
+            <button id="enterRoomBtn" class="btn-primary enter-btn" type="button">
+              Enter room →
+            </button>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="landing-divider">
+          <span>or create a new space</span>
+        </div>
+
+        <!-- Create a room -->
+        <div class="create-room-box">
+          <button id="createRoomBtn" class="create-btn" type="button">
+            + Create a room
+          </button>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modal: Room Ready -->
+  <div id="roomReadyModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="roomReadyTitle">
+    <div class="modal-card room-ready-card">
+      <div class="modal-header">
+        <h3 id="roomReadyTitle">Your room is ready</h3>
+        <p>Share this link with your companion to share your day.</p>
+      </div>
+
+      <div class="modal-body">
+        <div id="roomUrlDisplay" class="room-url-display">
+          https://...
+        </div>
+      </div>
+
+      <div class="modal-footer action-buttons-group">
+        <button id="copyRoomLinkBtn" class="btn-secondary" type="button">
+          Copy room link
+        </button>
+        <button id="enterCreatedRoomBtn" class="btn-primary" type="button">
+          Enter room →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Firebase Quick Setup (In-Browser helper) -->
+  <div id="firebaseSetupModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="setupModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="setupModalTitle">Firebase Configuration</h3>
+        <p>Paste your Firebase config object to connect Realtime Database.</p>
+      </div>
+
+      <div class="modal-body">
+        <textarea 
+          id="firebaseJsonInput" 
+          rows="8" 
+          placeholder='{
+  "apiKey": "AIzaSy...",
+  "databaseURL": "https://your-project-default-rtdb.firebaseio.com",
+  "projectId": "your-project"
+}' 
+          style="font-family: var(--font-mono); font-size: 0.82rem;"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button id="closeSetupModalBtn" class="btn-ghost" type="button">Cancel</button>
+        <button id="saveFirebaseConfigBtn" class="btn-primary" type="button">Save &amp; Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Firebase Compat SDKs (Pure static / No build tool needed) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/landing.js"></script>
+</body>
+</html>

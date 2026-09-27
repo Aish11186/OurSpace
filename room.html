@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day Room · Shared Space</title>
+  <meta name="description" content="Private realtime day room for two people.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23B08BEB%22/></svg>">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/room.css">
+</head>
+<body class="room-page">
+
+  <!-- Firebase Missing Setup Notification Banner -->
+  <div id="firebaseBanner" class="firebase-banner" style="display: none;">
+    <span><strong>Firebase setup required:</strong> Please add your Firebase credentials to <code>js/firebase-config.js</code> or configure in browser.</span>
+    <button id="openSetupBtn" type="button">Configure in browser</button>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="room-navbar">
+    <a href="index.html" class="nav-brand" title="Return to Home">
+      <span class="nav-brand-title">Day Room</span>
+    </a>
+
+    <div class="room-participants-badge" id="roomStatusBadge">
+      <span class="status-dot" id="liveStatusDot"></span>
+      <span id="roomStatusText">Connecting...</span>
+    </div>
+
+    <div class="nav-actions">
+      <button id="shareRoomBtn" class="btn-icon-share" type="button" title="Copy Room Link">
+        <span>Share Room</span>
+      </button>
+      <a href="index.html" class="btn-ghost" style="text-decoration: none; font-size: 0.85rem;">
+        Leave
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Room Content Area -->
+  <main class="room-container">
+    
+    <!-- 3-Column Grid -->
+    <div class="room-grid">
+      
+      <!-- COLUMN 1: PERSON A DAY TIMELINE -->
+      <section class="room-column person-a-column" id="personAColumn" aria-label="Person A Timeline">
+        <div class="column-header">
+          <div class="column-title-group">
+            <span class="column-label">PERSON A</span>
+            <h2 class="column-person-name" id="personAName">
+              Person A
+            </h2>
+          </div>
+          <span class="column-badge badge-waiting" id="personABadge">Waiting...</span>
+        </div>
+
+        <div class="timeline-container">
+          <div class="timeline-list" id="personATimelineList">
+            <!-- Items rendered via JS -->
+          </div>
+          <div class="timeline-empty" id="personAEmptyState">
+            <p>No activity yet today</p>
+          </div>
+        </div>
+
+        <div class="timeline-footer" id="personAFooter" style="display: none;">
+          <button class="btn-delete-all-logs" id="personADeleteAllBtn" type="button">
+            Delete all logs
+          </button>
+        </div>
+      </section>
+
+      <!-- COLUMN 2: MY CONTROLS (Center Column) -->
+      <section class="room-column controls-column" aria-label="My Controls">
+        <div class="controls-header">
+          <span class="column-label">DASHBOARD</span>
+          <h3>
+            <span>My Controls</span>
+          </h3>
+        </div>
+
+        <!-- Timer Card -->
+        <div class="timer-section" id="timerControlSection">
+          
+          <!-- State 1: Timer Idle -->
+          <div class="start-timer-idle" id="timerIdleState">
+            <button id="startTimerOpenBtn" class="btn-start-timer-main" type="button">
+              Start timer
+            </button>
+          </div>
+
+          <!-- State 2: Timer Active / Running -->
+          <div class="timer-running-box" id="timerRunningState" style="display: none;">
+            <div class="timer-running-task" id="activeTaskTitle">
+              Research paper
+            </div>
+            <div class="timer-running-digits" id="activeTimerClock">
+              00:00:00
+            </div>
+            <button id="finishTimerBtn" class="btn-finish-timer" type="button">
+              Finish timer
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Custom Log Input -->
+        <div class="custom-log-section">
+          <label for="customLogInput" class="section-sublabel">
+            <span>+ Log an update</span>
+          </label>
+          <form class="custom-log-form" id="customLogForm">
+            <input 
+              type="text" 
+              id="customLogInput" 
+              placeholder="What happened?..." 
+              autocomplete="off"
+            >
+            <button type="submit" class="btn-primary" id="customLogSubmitBtn">
+              Log
+            </button>
+          </form>
+        </div>
+
+        <!-- Quick Log Options -->
+        <div class="quick-log-section">
+          <span class="section-sublabel">Quick log</span>
+          <div class="quick-log-grid">
+            <button type="button" class="quick-chip" data-log="Water consumed">Water consumed</button>
+            <button type="button" class="quick-chip" data-log="Snack">Snack</button>
+            <button type="button" class="quick-chip" data-log="Meal">Meal</button>
+            <button type="button" class="quick-chip" data-log="Call">Call</button>
+            <button type="button" class="quick-chip" data-log="Lab work">Lab work</button>
+            <button type="button" class="quick-chip" data-log="Studied">Studied</button>
+            <button type="button" class="quick-chip" data-log="Coding">Coding</button>
+            <button type="button" class="quick-chip" data-log="Walk">Walk</button>
+            <button type="button" class="quick-chip" data-log="Workout">Workout</button>
+            <button type="button" class="quick-chip" data-log="Coffee">Coffee</button>
+            <button type="button" class="quick-chip" data-log="Nap">Nap</button>
+            <button type="button" class="quick-chip" data-log="Meditation">Meditation</button>
+            <button type="button" class="quick-chip" data-log="Shower">Shower</button>
+            <button type="button" class="quick-chip" data-log="Travel">Travel</button>
+            <button type="button" class="quick-chip" data-log="Home">Home</button>
+            <button type="button" class="quick-chip" data-log="Sleep">Sleep</button>
+            <button type="button" class="quick-chip quick-chip-more" id="quickMoreBtn">+ More</button>
+          </div>
+
+          <!-- Expandable Tag Chips -->
+          <div class="expanded-tags-panel" id="expandedTagsPanel">
+            <button type="button" class="quick-chip" data-log="Music session">Music</button>
+            <button type="button" class="quick-chip" data-log="Fresh air">Fresh air</button>
+            <button type="button" class="quick-chip" data-log="Reading">Reading</button>
+            <button type="button" class="quick-chip" data-log="Cleaning">Cleaning</button>
+            <button type="button" class="quick-chip" data-log="Tea break">Tea break</button>
+            <button type="button" class="quick-chip" data-log="Vitamins / Meds">Vitamins</button>
+            <button type="button" class="quick-chip" data-log="Creative work">Creative</button>
+            <button type="button" class="quick-chip" data-log="Groceries">Groceries</button>
+            <button type="button" class="quick-chip" data-log="Watered plants">Plants</button>
+            <button type="button" class="quick-chip" data-log="Bike ride">Bike ride</button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- COLUMN 3: PERSON B DAY TIMELINE -->
+      <section class="room-column person-b-column" id="personBColumn" aria-label="Person B Timeline">
+        <div class="column-header">
+          <div class="column-title-group">
+            <span class="column-label">PERSON B</span>
+            <h2 class="column-person-name" id="personBName">
+              Person B
+            </h2>
+          </div>
+          <span class="column-badge badge-waiting" id="personBBadge">Waiting...</span>
+        </div>
+
+        <div class="timeline-container">
+          <div class="timeline-list" id="personBTimelineList">
+            <!-- Items rendered via JS -->
+          </div>
+          <div class="timeline-empty" id="personBEmptyState">
+            <p>Waiting for companion to join or log...</p>
+          </div>
+        </div>
+
+        <div class="timeline-footer" id="personBFooter" style="display: none;">
+          <button class="btn-delete-all-logs" id="personBDeleteAllBtn" type="button">
+            Delete all logs
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- BOTTOM ROW: SHARED MESSAGES -->
+    <section class="messages-wrapper" aria-label="Shared Notes">
+      <div class="messages-header">
+        <h4>
+          <span>Shared Notes</span>
+        </h4>
+        <span>Quiet notes between you two</span>
+      </div>
+
+      <div class="messages-stream" id="messagesStream">
+        <div class="messages-empty" id="messagesEmptyState">
+          No notes left yet. Leave a gentle note below.
+        </div>
+      </div>
+
+      <form class="message-input-form" id="messageForm">
+        <input 
+          type="text" 
+          id="messageInput" 
+          placeholder="leave a little note..." 
+          autocomplete="off"
+          aria-label="Message text"
+        >
+        <button type="submit" class="btn-primary" id="sendMessageBtn" aria-label="Send message">
+          Send
+        </button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- MODAL: User Name / Join Room Prompt -->
+  <div id="joinRoomModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="joinModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="joinModalTitle">What's your name?</h3>
+        <p>Enter your name to join this private room.</p>
+      </div>
+
+      <form id="joinRoomForm">
+        <div class="modal-body">
+          <input 
+            type="text" 
+            id="joinNameInput" 
+            placeholder="Your name or nickname..." 
+            autocomplete="name" 
+            required
+            maxlength="30"
+          >
+        </div>
+
+        <div class="modal-footer center">
+          <button type="submit" class="btn-primary" style="width: 100%; padding: 12px;">
+            Enter room
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Start Timer Task Prompt -->
+  <div id="startTimerModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="startTimerTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="startTimerTitle">What are you working on?</h3>
+        <p>Name your task to start the stopwatch.</p>
+      </div>
+
+      <form id="startTimerForm">
+        <div class="modal-body">
+          <input 
+            type="text" 
+            id="taskNameInput" 
+            placeholder="e.g. Research paper, Coding, Reading..." 
+            required 
+            maxlength="60"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" id="cancelStartTimerBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="confirmStartTimerBtn">Start timer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Delete All Logs Confirmation -->
+  <div id="deleteAllModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="deleteAllTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="deleteAllTitle">Delete all your logs?</h3>
+        <p>Delete all your logs from this room? This will only remove your logs and cannot be undone.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" id="cancelDeleteAllBtn">Cancel</button>
+        <button type="button" class="btn-danger" id="confirmDeleteAllBtn">Delete all</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Room Full Notice -->
+  <div id="roomFullModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="roomFullTitle">
+    <div class="modal-card" style="text-align: center;">
+      <div class="modal-header">
+        <h3 id="roomFullTitle">Room is full</h3>
+        <p id="roomFullDescription">This room already has 2 participants. Day Room is designed as a private room for two people.</p>
+      </div>
+
+      <div class="modal-footer center">
+        <a href="index.html" class="btn-primary" style="text-decoration: none; padding: 11px 24px;">
+          Create a new room
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Firebase Quick Setup (In-Browser helper) -->
+  <div id="firebaseSetupModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Firebase Configuration</h3>
+        <p>Paste your Firebase config object to connect Realtime Database.</p>
+      </div>
+
+      <div class="modal-body">
+        <textarea 
+          id="firebaseJsonInput" 
+          rows="8" 
+          placeholder='{
+  "apiKey": "AIzaSy...",
+  "databaseURL": "https://your-project-default-rtdb.firebaseio.com",
+  "projectId": "your-project"
+}' 
+          style="font-family: var(--font-mono); font-size: 0.82rem;"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button id="closeSetupModalBtn" class="btn-ghost" type="button">Cancel</button>
+        <button id="saveFirebaseConfigBtn" class="btn-primary" type="button">Save &amp; Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/room.js"></script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+/* Day Room - Landing Page Styles 
+ * Dark Matte Aesthetic with Light Pink & Soft Blue Dominance
+ * Zero Glow Effects, Zero Gradients, Solid Colors, Static Outline Heart
+ */
+
+.landing-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.landing-container {
+  max-width: 500px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header */
+.landing-header {
+  text-align: center;
+  margin-bottom: 34px;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--pastel-pink-text);
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.landing-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--pastel-pink);
+}
+
+.landing-title {
+  font-size: 3.2rem;
+  line-height: 1.15;
+  margin-bottom: 10px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+.landing-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  max-width: 380px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Card Wrapper - Clean, Curvaceous, Matte */
+.landing-card {
+  background-color: var(--bg-card-glass);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  padding: 38px 32px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  position: relative;
+}
+
+.section-label {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 500;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+}
+
+/* Enter Room Form */
+.enter-room-box {
+  margin-bottom: 24px;
+}
+
+.input-with-button {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-field-wrap {
+  position: relative;
+}
+
+.input-field-wrap input {
+  padding: 13px 20px;
+  font-size: 0.98rem;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-medium);
+}
+
+.enter-btn {
+  width: 100%;
+  padding: 13px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  background-color: #D85D8D;
+}
+
+.enter-btn:hover {
+  background-color: #E26E9C;
+}
+
+/* Divider */
+.landing-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 26px 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.landing-divider::before,
+.landing-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+.landing-divider span {
+  padding: 0 16px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* Create Room Box */
+.create-room-box {
+  text-align: center;
+}
+
+.create-btn {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface);
+  border: 1.5px dashed var(--pastel-pink-border);
+  color: var(--pastel-pink-text);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.create-btn:hover {
+  background-color: var(--bg-card-hover);
+  border-color: var(--pastel-pink);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* Room Created State Modal/Card */
+.room-ready-card {
+  text-align: center;
+}
+
+.room-url-display {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-left: 3.5px solid var(--pastel-pink);
+  border-radius: var(--radius-md);
+  padding: 13px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  color: var(--text-main);
+  word-break: break-all;
+  user-select: all;
+  margin: 18px 0;
+  text-align: left;
+  line-height: 1.45;
+}
+
+.action-buttons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-buttons-group button {
+  width: 100%;
+  padding: 13px;
+  font-size: 0.98rem;
+}
+
+/* Footer / Quiet Room Note */
+.landing-footer {
+  margin-top: 36px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.landing-footer a {
+  color: var(--pastel-pink-text);
+  text-decoration: underline;
+}
+
+.landing-footer a:hover {
+  color: #FFFFFF;
+}
