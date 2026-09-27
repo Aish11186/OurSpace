@@ -1,8 +1,8 @@
 /**
  * Day Room - Room View Logic
  * 
- * Manages participant slots, live stopwatch, timeline synchronization,
- * message streams, quick actions, and deletion operations.
+ * Manages participant slots, live stopwatch, Pomodoro sessions with sound/notifications,
+ * water tracking, timeline synchronization, message streams, and deletion operations.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // DOM Elements
+  // DOM Elements - Header & Connectivity
   const roomStatusText = document.getElementById("roomStatusText");
   const liveStatusDot = document.getElementById("liveStatusDot");
   const shareRoomBtn = document.getElementById("shareRoomBtn");
@@ -36,16 +36,36 @@ document.addEventListener("DOMContentLoaded", () => {
   const personBFooter = document.getElementById("personBFooter");
   const personBDeleteAllBtn = document.getElementById("personBDeleteAllBtn");
 
-  // My Controls: Timer
+  // Water Trackers
+  const personAWaterTracker = document.getElementById("personAWaterTracker");
+  const personAWaterCount = document.getElementById("personAWaterCount");
+  const personAWaterMeter = document.getElementById("personAWaterMeter");
+
+  const personBWaterTracker = document.getElementById("personBWaterTracker");
+  const personBWaterCount = document.getElementById("personBWaterCount");
+  const personBWaterMeter = document.getElementById("personBWaterMeter");
+
+  // My Controls: Timer & Pomodoro
   const timerControlSection = document.getElementById("timerControlSection");
   const timerIdleState = document.getElementById("timerIdleState");
+  
+  // Stopwatch elements
   const timerRunningState = document.getElementById("timerRunningState");
   const startTimerOpenBtn = document.getElementById("startTimerOpenBtn");
   const activeTaskTitle = document.getElementById("activeTaskTitle");
   const activeTimerClock = document.getElementById("activeTimerClock");
   const finishTimerBtn = document.getElementById("finishTimerBtn");
 
-  // My Controls: Logs
+  // Pomodoro elements
+  const startPomodoroOpenBtn = document.getElementById("startPomodoroOpenBtn");
+  const pomodoroRunningState = document.getElementById("pomodoroRunningState");
+  const pomodoroPhaseBadge = document.getElementById("pomodoroPhaseBadge");
+  const activePomodoroTaskTitle = document.getElementById("activePomodoroTaskTitle");
+  const activePomodoroClock = document.getElementById("activePomodoroClock");
+  const nextPomodoroPhaseBtn = document.getElementById("nextPomodoroPhaseBtn");
+  const finishPomodoroBtn = document.getElementById("finishPomodoroBtn");
+
+  // My Controls: Logs & Quick Actions
   const customLogForm = document.getElementById("customLogForm");
   const customLogInput = document.getElementById("customLogInput");
   const quickLogButtons = document.querySelectorAll(".quick-chip[data-log]");
@@ -67,6 +87,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const startTimerForm = document.getElementById("startTimerForm");
   const taskNameInput = document.getElementById("taskNameInput");
   const cancelStartTimerBtn = document.getElementById("cancelStartTimerBtn");
+
+  const startPomodoroModal = document.getElementById("startPomodoroModal");
+  const startPomodoroForm = document.getElementById("startPomodoroForm");
+  const pomodoroTaskNameInput = document.getElementById("pomodoroTaskNameInput");
+  const cancelStartPomodoroBtn = document.getElementById("cancelStartPomodoroBtn");
+  const pomodoroPresetButtons = document.querySelectorAll(".pomodoro-preset-card");
 
   const deleteAllModal = document.getElementById("deleteAllModal");
   const cancelDeleteAllBtn = document.getElementById("cancelDeleteAllBtn");
@@ -95,6 +121,80 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentRoomData = null;
   let activeTimerData = null;
   let hasJoined = false;
+  let isAutoProgressing = false;
+
+  // Selected Pomodoro configuration preset
+  let selectedPomodoroConfig = {
+    workMinutes: 25,
+    breakMinutes: 5,
+    totalCycles: 4
+  };
+
+  // Audio Context & Web Notifications
+  let audioCtx = null;
+  function getAudioContext() {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
+    }
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+
+  // Play a soft, calming bell chime with Web Audio API
+  function playPhaseEndSound() {
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+
+      // Note 1: E5 (659.25 Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(659.25, now);
+      gain1.gain.setValueAtTime(0.2, now);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.6);
+
+      // Note 2: B5 (987.77 Hz)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(987.77, now + 0.18);
+      gain2.gain.setValueAtTime(0.25, now + 0.18);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.18);
+      osc2.stop(now + 0.9);
+    } catch (err) {
+      console.warn("Could not play notification sound:", err);
+    }
+  }
+
+  function notifyPhaseEnd(title, body) {
+    playPhaseEndSound();
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, { body });
+      } catch (e) {}
+    }
+  }
 
   // Check Firebase Configuration
   if (!DayRoomDB.isReady()) {
@@ -166,26 +266,70 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }
 
+  function formatCountdown(ms) {
+    if (ms < 0) ms = 0;
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+
   // 5. Global 1-Second Interval Ticker
-  // This updates local active timers on screen without querying Firebase every second
   setInterval(() => {
     const now = Date.now();
 
     // Update My Controls timer if running
     if (activeTimerData && activeTimerData.startedAt) {
-      const elapsed = now - activeTimerData.startedAt;
-      if (activeTimerClock) {
-        activeTimerClock.textContent = formatStopwatch(elapsed);
+      const isPomodoro = activeTimerData.timerSubtype === "pomodoro" || activeTimerData.type === "pomodoro";
+
+      if (isPomodoro) {
+        const isBreak = activeTimerData.currentPhase === "break";
+        const durationMins = isBreak ? (activeTimerData.breakMinutes || 5) : (activeTimerData.workMinutes || 25);
+        const phaseDurationMs = durationMins * 60 * 1000;
+        const phaseStarted = activeTimerData.phaseStartedAt || activeTimerData.startedAt;
+        const elapsedInPhase = now - phaseStarted;
+        const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
+
+        if (activePomodoroClock) {
+          activePomodoroClock.textContent = formatCountdown(remainingMs);
+        }
+
+        // Auto-advance when countdown reaches 0
+        if (remainingMs <= 0 && !isAutoProgressing && hasJoined && mySlot) {
+          isAutoProgressing = true;
+          advancePomodoroPhase().finally(() => {
+            setTimeout(() => { isAutoProgressing = false; }, 3000);
+          });
+        }
+      } else {
+        // Standard Stopwatch
+        const elapsed = now - activeTimerData.startedAt;
+        if (activeTimerClock) {
+          activeTimerClock.textContent = formatStopwatch(elapsed);
+        }
       }
     }
 
-    // Update any active timer badges in Person A or Person B timelines
+    // Update standard stopwatch badges in timelines
     const activeTimelineBadges = document.querySelectorAll(".timer-live-ticker");
     activeTimelineBadges.forEach((el) => {
       const startedAt = parseInt(el.getAttribute("data-started-at"), 10);
       if (startedAt) {
         const elapsed = now - startedAt;
         el.textContent = formatDurationShort(elapsed);
+      }
+    });
+
+    // Update pomodoro countdown badges in timelines
+    const activePomodoroBadges = document.querySelectorAll(".pomodoro-live-ticker");
+    activePomodoroBadges.forEach((el) => {
+      const phaseStartedAt = parseInt(el.getAttribute("data-phase-started-at"), 10);
+      const durationMins = parseInt(el.getAttribute("data-duration-mins"), 10) || 25;
+      if (phaseStartedAt) {
+        const phaseDurationMs = durationMins * 60 * 1000;
+        const elapsedInPhase = now - phaseStartedAt;
+        const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
+        el.textContent = formatCountdown(remainingMs) + " left";
       }
     });
   }, 1000);
@@ -215,7 +359,6 @@ document.addEventListener("DOMContentLoaded", () => {
       roomId,
       (data, exists) => {
         if (!exists) {
-          // Room does not exist yet; create it
           DayRoomDB.createRoom(roomId).then(() => {
             console.log("Room initialized:", roomId);
           }).catch(err => {
@@ -255,15 +398,12 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       // User has not joined this room yet
       if (!userA.id) {
-        // Slot A is available
         promptJoinModal("userA");
         return;
       } else if (!userB.id) {
-        // Slot B is available
         promptJoinModal("userB");
         return;
       } else {
-        // Both slots filled by other users!
         showRoomFull(userA.name, userB.name);
         return;
       }
@@ -362,6 +502,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Process Logs
     const rawLogs = (userData && userData.logs) ? Object.values(userData.logs) : [];
+
+    // Render Water Tracker for this person
+    const waterTrackerEl = (slotKey === "userA") ? personAWaterTracker : personBWaterTracker;
+    const waterCountEl = (slotKey === "userA") ? personAWaterCount : personBWaterCount;
+    const waterMeterEl = (slotKey === "userA") ? personAWaterMeter : personBWaterMeter;
+
+    const waterLogsCount = rawLogs.filter(l => l.text && l.text.toLowerCase().includes("water")).length;
+    const clampedWater = Math.min(9, waterLogsCount);
+
+    if (waterCountEl) {
+      if (clampedWater >= 9) {
+        waterCountEl.textContent = "9/9 glasses completed";
+      } else {
+        waterCountEl.textContent = `${clampedWater}/9 glasses`;
+      }
+    }
+
+    if (waterTrackerEl) {
+      waterTrackerEl.classList.toggle("completed", clampedWater >= 9);
+    }
+
+    if (waterMeterEl) {
+      const segments = waterMeterEl.querySelectorAll(".water-segment");
+      segments.forEach((seg, idx) => {
+        seg.classList.toggle("filled", (idx + 1) <= clampedWater);
+      });
+    }
     
     if (rawLogs.length === 0) {
       listEl.innerHTML = "";
@@ -419,7 +586,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Card Content based on type
       if (log.type === "timer") {
-        nodeEl.classList.add("node-timer");
+        const isPomodoro = log.timerSubtype === "pomodoro";
+
+        if (isPomodoro) {
+          nodeEl.classList.add("node-pomodoro");
+        } else {
+          nodeEl.classList.add("node-timer");
+        }
         cardEl.classList.add("timer-card");
 
         const isCurrentlyActive = log.isActive === true;
@@ -428,33 +601,74 @@ document.addEventListener("DOMContentLoaded", () => {
           nodeEl.classList.add("node-active");
           cardEl.classList.add("active-timer");
 
-          const elapsedNow = Date.now() - log.startedAt;
-          
-          cardEl.innerHTML += `
-            <div class="timer-task-title">
-              <span>Started timer for <strong>"${escapeHtml(log.task || "Task")}"</strong></span>
-            </div>
-            <div class="timer-active-badge">
-              <span>Currently active · </span>
-              <span class="ticker timer-live-ticker" data-started-at="${log.startedAt}">${formatDurationShort(elapsedNow)}</span>
-            </div>
-          `;
+          if (isPomodoro) {
+            const isBreak = log.currentPhase === "break";
+            const durationMins = isBreak ? (log.breakMinutes || 5) : (log.workMinutes || 25);
+            const phaseDurationMs = durationMins * 60 * 1000;
+            const phaseStarted = log.phaseStartedAt || log.startedAt;
+            const elapsedInPhase = Date.now() - phaseStarted;
+            const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
+
+            cardEl.innerHTML += `
+              <div class="pomodoro-badge ${isBreak ? 'badge-break' : ''}">
+                ${isBreak ? 'Break' : 'Focus'} · Cycle ${log.currentCycle || 1} of ${log.totalCycles || 4}
+              </div>
+              <div class="timer-task-title">
+                <span><strong>"${escapeHtml(log.task || "Pomodoro Session")}"</strong></span>
+              </div>
+              <div class="timer-active-badge">
+                <span>${isBreak ? 'Resting' : 'Focusing'} · </span>
+                <span class="ticker pomodoro-live-ticker" 
+                      data-phase-started-at="${phaseStarted}" 
+                      data-duration-mins="${durationMins}">
+                  ${formatCountdown(remainingMs)} left
+                </span>
+              </div>
+            `;
+          } else {
+            const elapsedNow = Date.now() - log.startedAt;
+            cardEl.innerHTML += `
+              <div class="timer-task-title">
+                <span>Started timer for <strong>"${escapeHtml(log.task || "Task")}"</strong></span>
+              </div>
+              <div class="timer-active-badge">
+                <span>Currently active · </span>
+                <span class="ticker timer-live-ticker" data-started-at="${log.startedAt}">${formatDurationShort(elapsedNow)}</span>
+              </div>
+            `;
+          }
         } else {
-          // Finished Timer
+          // Finished Timer / Pomodoro
           const startTimeStr = formatTime(log.startedAt);
           const finishTimeStr = formatTime(log.finishedAt || log.timestamp);
           const durationStr = log.durationFormatted || formatDurationShort(log.duration || 0);
 
-          cardEl.innerHTML += `
-            <div class="timer-task-title">
-              <span><strong>${escapeHtml(log.task || "Task")}</strong></span>
-            </div>
-            <div class="timer-details">
-              <span>Started at ${startTimeStr}</span>
-              <span>Duration: ${durationStr}</span>
-              ${log.finishedAt ? `<span>Finished at ${finishTimeStr}</span>` : ""}
-            </div>
-          `;
+          if (isPomodoro) {
+            cardEl.innerHTML += `
+              <div class="pomodoro-badge">
+                Pomodoro · ${log.completedCycles || log.totalCycles || 1}/${log.totalCycles || 4} cycles
+              </div>
+              <div class="timer-task-title">
+                <span><strong>${escapeHtml(log.task || "Pomodoro Session")}</strong></span>
+              </div>
+              <div class="timer-details">
+                <span>Started at ${startTimeStr}</span>
+                <span>Duration: ${durationStr}</span>
+                ${log.finishedAt ? `<span>Finished at ${finishTimeStr}</span>` : ""}
+              </div>
+            `;
+          } else {
+            cardEl.innerHTML += `
+              <div class="timer-task-title">
+                <span><strong>${escapeHtml(log.task || "Task")}</strong></span>
+              </div>
+              <div class="timer-details">
+                <span>Started at ${startTimeStr}</span>
+                <span>Duration: ${durationStr}</span>
+                ${log.finishedAt ? `<span>Finished at ${finishTimeStr}</span>` : ""}
+              </div>
+            `;
+          }
         }
       } else {
         // Standard / Quick / Custom Log
@@ -470,31 +684,67 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 11. Render My Controls Timer State
+  // 11. Render My Controls Timer & Pomodoro State
   function renderMyTimerControls(myUserData) {
     if (!myUserData) return;
 
     activeTimerData = myUserData.activeTimer || null;
 
     if (activeTimerData && activeTimerData.startedAt) {
-      // Timer is running
       timerControlSection.classList.add("running");
       timerIdleState.style.display = "none";
-      timerRunningState.style.display = "flex";
 
-      activeTaskTitle.innerHTML = escapeHtml(activeTimerData.task || "Task");
-      const elapsed = Date.now() - activeTimerData.startedAt;
-      activeTimerClock.textContent = formatStopwatch(elapsed);
+      const isPomodoro = activeTimerData.timerSubtype === "pomodoro" || activeTimerData.type === "pomodoro";
+
+      if (isPomodoro) {
+        timerRunningState.style.display = "none";
+        pomodoroRunningState.style.display = "flex";
+
+        const isBreak = activeTimerData.currentPhase === "break";
+        const cycle = activeTimerData.currentCycle || 1;
+        const total = activeTimerData.totalCycles || 4;
+
+        pomodoroPhaseBadge.textContent = isBreak
+          ? `Break Phase · Cycle ${cycle} of ${total}`
+          : `Focus Phase · Cycle ${cycle} of ${total}`;
+
+        if (isBreak) {
+          pomodoroPhaseBadge.classList.add("phase-break");
+        } else {
+          pomodoroPhaseBadge.classList.remove("phase-break");
+        }
+
+        activePomodoroTaskTitle.textContent = activeTimerData.task || "Pomodoro Session";
+
+        const durationMins = isBreak ? (activeTimerData.breakMinutes || 5) : (activeTimerData.workMinutes || 25);
+        const phaseDurationMs = durationMins * 60 * 1000;
+        const phaseStarted = activeTimerData.phaseStartedAt || activeTimerData.startedAt;
+        const elapsedInPhase = Date.now() - phaseStarted;
+        const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
+
+        activePomodoroClock.textContent = formatCountdown(remainingMs);
+      } else {
+        // Standard Stopwatch
+        pomodoroRunningState.style.display = "none";
+        timerRunningState.style.display = "flex";
+
+        activeTaskTitle.textContent = activeTimerData.task || "Task";
+        const elapsed = Date.now() - activeTimerData.startedAt;
+        activeTimerClock.textContent = formatStopwatch(elapsed);
+      }
     } else {
-      // Timer is idle
+      // Idle State
       timerControlSection.classList.remove("running");
       timerIdleState.style.display = "block";
       timerRunningState.style.display = "none";
+      pomodoroRunningState.style.display = "none";
     }
   }
 
-  // 12. Start Timer Action
+  // 12. Standard Stopwatch Handlers
   startTimerOpenBtn.addEventListener("click", () => {
+    getAudioContext();
+    requestNotificationPermission();
     if (!hasJoined || !mySlot) {
       showToast("Please enter your name first.");
       return;
@@ -523,7 +773,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 13. Finish Timer Action
   finishTimerBtn.addEventListener("click", async () => {
     if (!activeTimerData || !mySlot) return;
 
@@ -540,6 +789,170 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Failed to finish timer.");
     }
   });
+
+  // 13. Pomodoro Modal & Session Handlers
+  if (startPomodoroOpenBtn) {
+    startPomodoroOpenBtn.addEventListener("click", () => {
+      getAudioContext();
+      requestNotificationPermission();
+      if (!hasJoined || !mySlot) {
+        showToast("Please enter your name first.");
+        return;
+      }
+      if (pomodoroTaskNameInput) pomodoroTaskNameInput.value = "";
+      if (startPomodoroModal) startPomodoroModal.classList.add("active");
+      setTimeout(() => {
+        if (pomodoroTaskNameInput) pomodoroTaskNameInput.focus();
+      }, 150);
+    });
+  }
+
+  if (cancelStartPomodoroBtn && startPomodoroModal) {
+    cancelStartPomodoroBtn.addEventListener("click", () => {
+      startPomodoroModal.classList.remove("active");
+    });
+  }
+
+  // Preset Selection Handlers
+  pomodoroPresetButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      getAudioContext();
+      pomodoroPresetButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedPomodoroConfig = {
+        workMinutes: parseInt(btn.getAttribute("data-work"), 10) || 25,
+        breakMinutes: parseInt(btn.getAttribute("data-break"), 10) || 5,
+        totalCycles: parseInt(btn.getAttribute("data-cycles"), 10) || 4
+      };
+    });
+  });
+
+  if (startPomodoroForm) {
+    startPomodoroForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const taskName = pomodoroTaskNameInput ? pomodoroTaskNameInput.value.trim() : "";
+      if (!taskName) return;
+
+      getAudioContext();
+      requestNotificationPermission();
+
+      try {
+        if (startPomodoroModal) startPomodoroModal.classList.remove("active");
+        await DayRoomDB.startPomodoro(
+          roomId,
+          mySlot,
+          taskName,
+          selectedPomodoroConfig.workMinutes,
+          selectedPomodoroConfig.breakMinutes,
+          selectedPomodoroConfig.totalCycles
+        );
+        showToast(`Started Pomodoro: "${taskName}" (${selectedPomodoroConfig.workMinutes}m/${selectedPomodoroConfig.breakMinutes}m × ${selectedPomodoroConfig.totalCycles})`);
+      } catch (err) {
+        console.error("Start Pomodoro error:", err);
+        showToast("Failed to start Pomodoro. Check connection.");
+      }
+    });
+  }
+
+  // Advance Phase helper with Sound and Notification
+  async function advancePomodoroPhase() {
+    if (!activeTimerData || !mySlot) return;
+
+    const currentPhase = activeTimerData.currentPhase || "work";
+    const currentCycle = activeTimerData.currentCycle || 1;
+    const totalCycles = activeTimerData.totalCycles || 4;
+    const logId = activeTimerData.logId;
+
+    if (currentPhase === "work") {
+      // Transition from focus to break
+      try {
+        notifyPhaseEnd(
+          "Focus Phase Finished",
+          `Great focus! Starting ${activeTimerData.breakMinutes || 5}m break (Cycle ${currentCycle}/${totalCycles}).`
+        );
+        await DayRoomDB.updatePomodoroPhase(roomId, mySlot, logId, currentCycle, "break");
+        showToast(`Focus finished! Starting ${activeTimerData.breakMinutes || 5}m break (Cycle ${currentCycle}/${totalCycles})`);
+      } catch (err) {
+        console.error("Update pomodoro phase error:", err);
+      }
+    } else {
+      // Transition from break to next focus cycle or finish session
+      if (currentCycle < totalCycles) {
+        try {
+          notifyPhaseEnd(
+            "Break Time Over",
+            `Ready for Focus cycle ${currentCycle + 1} of ${totalCycles}?`
+          );
+          await DayRoomDB.updatePomodoroPhase(roomId, mySlot, logId, currentCycle + 1, "work");
+          showToast(`Break over! Starting Focus cycle ${currentCycle + 1} of ${totalCycles}`);
+        } catch (err) {
+          console.error("Update pomodoro cycle error:", err);
+        }
+      } else {
+        // All cycles completed
+        notifyPhaseEnd(
+          "Pomodoro Session Complete",
+          `Congratulations! You finished all ${totalCycles} cycles.`
+        );
+        await handleFinishPomodoro();
+      }
+    }
+  }
+
+  // Finish Pomodoro helper
+  async function handleFinishPomodoro() {
+    if (!activeTimerData || !mySlot) return;
+    const startedAt = activeTimerData.startedAt;
+    const logId = activeTimerData.logId;
+    const completedCycles = activeTimerData.currentCycle || 1;
+    const totalCycles = activeTimerData.totalCycles || 4;
+    const duration = Date.now() - startedAt;
+    const durationFormatted = formatDurationShort(duration);
+
+    try {
+      await DayRoomDB.finishPomodoro(roomId, mySlot, logId, startedAt, completedCycles, totalCycles, durationFormatted);
+      showToast(`Finished Pomodoro session! (${completedCycles}/${totalCycles} cycles · ${durationFormatted})`);
+    } catch (err) {
+      console.error("Finish pomodoro error:", err);
+      showToast("Failed to finish Pomodoro.");
+    }
+  }
+
+  if (nextPomodoroPhaseBtn) {
+    nextPomodoroPhaseBtn.addEventListener("click", () => {
+      getAudioContext();
+      advancePomodoroPhase();
+    });
+  }
+
+  if (finishPomodoroBtn) {
+    finishPomodoroBtn.addEventListener("click", () => {
+      getAudioContext();
+      handleFinishPomodoro();
+    });
+  }
+
+  // Water Tracker Click Handlers (allow clicking tracker directly to increment)
+  function setupWaterTrackerClick(trackerEl, slot) {
+    if (!trackerEl) return;
+    trackerEl.style.cursor = "pointer";
+    trackerEl.title = "Click to log water";
+    trackerEl.addEventListener("click", async () => {
+      if (!hasJoined || !mySlot) {
+        showToast("Please enter your name first.");
+        return;
+      }
+      try {
+        await DayRoomDB.addLog(roomId, mySlot, { text: "Water consumed", type: "quick" });
+        showToast("Logged: Water consumed");
+      } catch (e) {
+        showToast("Failed to log water.");
+      }
+    });
+  }
+
+  setupWaterTrackerClick(personAWaterTracker, "userA");
+  setupWaterTrackerClick(personBWaterTracker, "userB");
 
   // 14. Custom Log Submission
   customLogForm.addEventListener("submit", async (e) => {

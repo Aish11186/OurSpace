@@ -187,6 +187,71 @@
   border: 1px solid var(--border-subtle);
 }
 
+/* Minimal Water Tracker */
+.water-tracker-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  transition: all var(--transition-fast);
+}
+
+.water-tracker-container:hover {
+  border-color: rgba(120, 174, 234, 0.4);
+}
+
+.water-tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.water-tracker-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.water-tracker-count {
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: #78AEEA;
+}
+
+.water-tracker-container.completed .water-tracker-count {
+  color: #F08CB4;
+}
+
+.water-tracker-meter {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.water-segment {
+  flex: 1;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, 0.08);
+  transition: all 200ms ease;
+}
+
+.water-segment.filled {
+  background-color: #78AEEA;
+}
+
+.water-tracker-container.completed .water-segment.filled {
+  background-color: #F08CB4;
+}
+
 /* Timeline Stream */
 .timeline-container {
   flex: 1;
@@ -437,7 +502,7 @@
 .start-timer-idle {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .btn-start-timer-main {
@@ -457,13 +522,52 @@
   transform: translateY(-1px);
 }
 
-/* Timer Running Box */
-.timer-running-box {
+.btn-pomodoro-main {
+  width: 100%;
+  padding: 12px 22px;
+  background-color: #1E283D;
+  color: #78AEEA;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.98rem;
+  border: 1px solid rgba(120, 174, 234, 0.35);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-pomodoro-main:hover {
+  background-color: #27344F;
+  border-color: rgba(120, 174, 234, 0.6);
+  color: #92C0F2;
+  transform: translateY(-1px);
+}
+
+/* Timer Running Box & Pomodoro Running Box */
+.timer-running-box,
+.pomodoro-running-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 10px;
+}
+
+.pomodoro-phase-badge {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  background-color: #381E2E;
+  color: #F08CB4;
+  border: 1px solid var(--pastel-pink-border);
+  letter-spacing: 0.02em;
+}
+
+.pomodoro-phase-badge.phase-break {
+  background-color: #1A2338;
+  color: #78AEEA;
+  border-color: var(--pastel-blue-border);
 }
 
 .timer-running-task {
@@ -489,6 +593,41 @@
   margin: 4px 0 8px 0;
 }
 
+.pomodoro-running-box .timer-running-digits {
+  color: #78AEEA;
+  border-color: var(--pastel-blue-border);
+}
+
+.pomodoro-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-secondary {
+  background-color: #232B3B;
+  color: #A0C2EC;
+  border: 1px solid rgba(120, 174, 234, 0.3);
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background-color: #2F3B52;
+  border-color: rgba(120, 174, 234, 0.6);
+  color: #FFFFFF;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 0.88rem;
+}
+
 .btn-finish-timer {
   background-color: #C44569;
   color: #FFFFFF;
@@ -503,6 +642,97 @@
 .btn-finish-timer:hover {
   background-color: #D45479;
   transform: translateY(-1px);
+}
+
+/* Pomodoro Modal Preset Grid */
+.pomodoro-modal-card {
+  max-width: 480px;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.pomodoro-presets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pomodoro-preset-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pomodoro-preset-card:hover {
+  border-color: #78AEEA;
+  background-color: #1E283D;
+}
+
+.pomodoro-preset-card.active {
+  background-color: #1D2A44;
+  border: 2px solid #78AEEA;
+}
+
+.pomodoro-preset-card .preset-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.pomodoro-preset-card.active .preset-title {
+  color: #92C0F2;
+}
+
+.pomodoro-preset-card .preset-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Pomodoro Timeline Nodes & Badges */
+.timeline-node.node-pomodoro {
+  border-color: #78AEEA;
+  background-color: var(--bg-surface);
+}
+
+.timeline-node.node-pomodoro.node-active {
+  border-color: #78AEEA;
+  background-color: #78AEEA;
+}
+
+.pomodoro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background-color: #1A2338;
+  color: #78AEEA;
+  border: 1px solid var(--pastel-blue-border);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.pomodoro-badge.badge-break {
+  background-color: #2D2235;
+  color: #F08CB4;
+  border-color: var(--pastel-pink-border);
 }
 
 /* Custom Log Section */

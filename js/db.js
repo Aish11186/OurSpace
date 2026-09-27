@@ -214,6 +214,116 @@ const DayRoomDB = (function () {
   }
 
   /**
+   * Start a Pomodoro timer session
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} taskName 
+   * @param {number} workMinutes 
+   * @param {number} breakMinutes 
+   * @param {number} totalCycles 
+   */
+  async function startPomodoro(roomId, slot, taskName, workMinutes, breakMinutes, totalCycles) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const now = Date.now();
+    const logsRef = db.ref(`rooms/${roomId}/users/${slot}/logs`);
+    const newLogRef = logsRef.push();
+    const logId = newLogRef.key;
+
+    const pomodoroLog = {
+      id: logId,
+      type: "timer",
+      timerSubtype: "pomodoro",
+      task: taskName.trim(),
+      workMinutes: Number(workMinutes),
+      breakMinutes: Number(breakMinutes),
+      totalCycles: Number(totalCycles),
+      currentCycle: 1,
+      currentPhase: "work", // "work" | "break"
+      phaseStartedAt: now,
+      startedAt: now,
+      timestamp: now,
+      isActive: true
+    };
+
+    const activeTimerState = {
+      logId: logId,
+      task: taskName.trim(),
+      type: "pomodoro",
+      timerSubtype: "pomodoro",
+      workMinutes: Number(workMinutes),
+      breakMinutes: Number(breakMinutes),
+      totalCycles: Number(totalCycles),
+      currentCycle: 1,
+      currentPhase: "work",
+      phaseStartedAt: now,
+      startedAt: now
+    };
+
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}`] = pomodoroLog;
+    updates[`rooms/${roomId}/users/${slot}/activeTimer`] = activeTimerState;
+
+    await db.ref().update(updates);
+    return pomodoroLog;
+  }
+
+  /**
+   * Update Pomodoro to the next phase/cycle
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} logId 
+   * @param {number} nextCycle 
+   * @param {"work"|"break"} nextPhase 
+   */
+  async function updatePomodoroPhase(roomId, slot, logId, nextCycle, nextPhase) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const now = Date.now();
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/currentCycle`] = nextCycle;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/currentPhase`] = nextPhase;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/phaseStartedAt`] = now;
+
+    updates[`rooms/${roomId}/users/${slot}/activeTimer/currentCycle`] = nextCycle;
+    updates[`rooms/${roomId}/users/${slot}/activeTimer/currentPhase`] = nextPhase;
+    updates[`rooms/${roomId}/users/${slot}/activeTimer/phaseStartedAt`] = now;
+
+    await db.ref().update(updates);
+  }
+
+  /**
+   * Finish Pomodoro session
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} logId 
+   * @param {number} startedAt 
+   * @param {number} completedCycles 
+   * @param {number} totalCycles 
+   * @param {string} durationFormatted 
+   */
+  async function finishPomodoro(roomId, slot, logId, startedAt, completedCycles, totalCycles, durationFormatted) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const now = Date.now();
+    const duration = now - startedAt;
+
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/isActive`] = false;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/finishedAt`] = now;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/duration`] = duration;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/durationFormatted`] = durationFormatted;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/completedCycles`] = completedCycles;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/totalCycles`] = totalCycles;
+    updates[`rooms/${roomId}/users/${slot}/activeTimer`] = null;
+
+    await db.ref().update(updates);
+  }
+
+  /**
    * Delete an individual log
    * @param {string} roomId 
    * @param {"userA"|"userB"} slot 
@@ -289,6 +399,9 @@ const DayRoomDB = (function () {
     addLog,
     startTimer,
     finishTimer,
+    startPomodoro,
+    updatePomodoroPhase,
+    finishPomodoro,
     deleteLog,
     deleteAllLogs,
     sendMessage
