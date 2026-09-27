@@ -290,8 +290,15 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .timeline-node {
@@ -993,6 +1000,28 @@
   display: flex;
   gap: 10px;
   margin-top: 4px;
+  align-items: center;
+}
+
+.btn-camera-trigger {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  padding: 11px 13px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-camera-trigger:hover {
+  border-color: #78AEEA;
+  color: #78AEEA;
+  background-color: #1E283D;
+  transform: translateY(-1px);
 }
 
 .message-input-form input {
@@ -1002,14 +1031,216 @@
   border-radius: var(--radius-full);
 }
 
-.message-input-form button {
+.message-input-form button.btn-primary {
   padding: 11px 22px;
   border-radius: var(--radius-full);
   background-color: #D85D8D;
+  flex-shrink: 0;
 }
 
-.message-input-form button:hover {
+.message-input-form button.btn-primary:hover {
   background-color: #E26E9C;
+}
+
+/* Photo in Message Bubble */
+.message-photo-wrapper {
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.message-photo {
+  max-width: 100%;
+  max-height: 240px;
+  display: block;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.message-photo:hover {
+  transform: scale(1.02);
+  opacity: 0.95;
+}
+
+.message-caption {
+  margin-top: 4px;
+  font-size: 0.94rem;
+  line-height: 1.4;
+}
+
+/* Camera Modal */
+.camera-modal-card {
+  max-width: 440px;
+}
+
+.camera-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.camera-viewfinder-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3;
+  max-height: 320px;
+  background-color: #05070D;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+}
+
+.camera-viewfinder-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror selfie for natural feel */
+}
+
+.camera-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(10, 13, 20, 0.85);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  font-family: var(--font-serif);
+  transition: opacity 200ms ease;
+}
+
+.camera-preview-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.camera-preview-container img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background-color: #05070D;
+}
+
+.camera-modal-footer {
+  width: 100%;
+  padding-top: 14px;
+}
+
+.camera-controls-live {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.btn-shutter {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background-color: #1E283D;
+  border: 3px solid #78AEEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 180ms ease;
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-shutter:hover {
+  border-color: #F08CB4;
+  transform: scale(1.06);
+}
+
+.shutter-inner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: #D85D8D;
+  transition: all 120ms ease;
+  display: block;
+}
+
+.btn-shutter:active .shutter-inner {
+  transform: scale(0.85);
+  background-color: #E26E9C;
+}
+
+.camera-controls-preview {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Image Lightbox */
+.image-lightbox-backdrop {
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(5, 7, 13, 0.92);
+}
+
+.image-lightbox-backdrop.active {
+  display: flex;
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 180ms ease;
+}
+
+.lightbox-content img {
+  max-width: 85vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-lg);
+}
+
+.lightbox-close-btn {
+  position: absolute;
+  top: -38px;
+  right: -8px;
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.lightbox-close-btn:hover {
+  color: #F08CB4;
+}
+
+.lightbox-caption {
+  margin-top: 12px;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  text-align: center;
+  max-width: 80vw;
 }
 
 /* RESPONSIVE DESIGN */

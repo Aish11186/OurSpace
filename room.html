@@ -1,21 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Room · Shared Space</title>
   <meta name="description" content="Private realtime day room for two people.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23B08BEB%22/></svg>">
-  
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23B08BEB%22/></svg>">
+
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/room.css">
 </head>
+
 <body class="room-page">
 
   <!-- Firebase Missing Setup Notification Banner -->
   <div id="firebaseBanner" class="firebase-banner" style="display: none;">
-    <span><strong>Firebase setup required:</strong> Please add your Firebase credentials to <code>js/firebase-config.js</code> or configure in browser.</span>
+    <span><strong>Firebase setup required:</strong> Please add your Firebase credentials to
+      <code>js/firebase-config.js</code> or configure in browser.</span>
     <button id="openSetupBtn" type="button">Configure in browser</button>
   </div>
 
@@ -42,10 +46,10 @@
 
   <!-- Main Room Content Area -->
   <main class="room-container">
-    
+
     <!-- 3-Column Grid -->
     <div class="room-grid">
-      
+
       <!-- COLUMN 1: PERSON A DAY TIMELINE -->
       <section class="room-column person-a-column" id="personAColumn" aria-label="Person A Timeline">
         <div class="column-header">
@@ -104,7 +108,7 @@
 
         <!-- Timer Card -->
         <div class="timer-section" id="timerControlSection">
-          
+
           <!-- State 1: Timer Idle -->
           <div class="start-timer-idle" id="timerIdleState">
             <button id="startTimerOpenBtn" class="btn-start-timer-main" type="button">
@@ -157,12 +161,7 @@
             <span>+ Log an update</span>
           </label>
           <form class="custom-log-form" id="customLogForm">
-            <input 
-              type="text" 
-              id="customLogInput" 
-              placeholder="What happened?..." 
-              autocomplete="off"
-            >
+            <input type="text" id="customLogInput" placeholder="What happened?..." autocomplete="off">
             <button type="submit" class="btn-primary" id="customLogSubmitBtn">
               Log
             </button>
@@ -274,6 +273,18 @@
       </div>
 
       <form class="message-input-form" id="messageForm">
+        <button 
+          type="button" 
+          class="btn-camera-trigger" 
+          id="openCameraBtn" 
+          title="Take a live picture" 
+          aria-label="Take picture"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
         <input 
           type="text" 
           id="messageInput" 
@@ -299,14 +310,8 @@
 
       <form id="joinRoomForm">
         <div class="modal-body">
-          <input 
-            type="text" 
-            id="joinNameInput" 
-            placeholder="Your name or nickname..." 
-            autocomplete="name" 
-            required
-            maxlength="30"
-          >
+          <input type="text" id="joinNameInput" placeholder="Your name or nickname..." autocomplete="name" required
+            maxlength="30">
         </div>
 
         <div class="modal-footer center">
@@ -328,14 +333,8 @@
 
       <form id="startTimerForm">
         <div class="modal-body">
-          <input 
-            type="text" 
-            id="taskNameInput" 
-            placeholder="e.g. Research paper, Coding, Reading..." 
-            required 
-            maxlength="60"
-            autocomplete="off"
-          >
+          <input type="text" id="taskNameInput" placeholder="e.g. Research paper, Coding, Reading..." required
+            maxlength="60" autocomplete="off">
         </div>
 
         <div class="modal-footer">
@@ -347,7 +346,8 @@
   </div>
 
   <!-- MODAL: Start Pomodoro Prompt -->
-  <div id="startPomodoroModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="startPomodoroTitle">
+  <div id="startPomodoroModal" class="modal-backdrop" role="dialog" aria-modal="true"
+    aria-labelledby="startPomodoroTitle">
     <div class="modal-card pomodoro-modal-card">
       <div class="modal-header">
         <h3 id="startPomodoroTitle">Start Pomodoro Session</h3>
@@ -358,14 +358,8 @@
         <div class="modal-body">
           <div class="form-group" style="margin-bottom: 16px;">
             <label for="pomodoroTaskNameInput" class="field-label">Focus Task Name</label>
-            <input 
-              type="text" 
-              id="pomodoroTaskNameInput" 
-              placeholder="e.g. Deep Study, Thesis, Coding sprint..." 
-              required 
-              maxlength="60"
-              autocomplete="off"
-            >
+            <input type="text" id="pomodoroTaskNameInput" placeholder="e.g. Deep Study, Thesis, Coding sprint..."
+              required maxlength="60" autocomplete="off">
           </div>
 
           <div class="form-group">
@@ -419,7 +413,8 @@
     <div class="modal-card" style="text-align: center;">
       <div class="modal-header">
         <h3 id="roomFullTitle">Room is full</h3>
-        <p id="roomFullDescription">This room already has 2 participants. Day Room is designed as a private room for two people.</p>
+        <p id="roomFullDescription">This room already has 2 participants. Day Room is designed as a private room for two
+          people.</p>
       </div>
 
       <div class="modal-footer center">
@@ -439,21 +434,79 @@
       </div>
 
       <div class="modal-body">
-        <textarea 
-          id="firebaseJsonInput" 
-          rows="8" 
-          placeholder='{
+        <textarea id="firebaseJsonInput" rows="8" placeholder='{
   "apiKey": "AIzaSy...",
   "databaseURL": "https://your-project-default-rtdb.firebaseio.com",
   "projectId": "your-project"
-}' 
-          style="font-family: var(--font-mono); font-size: 0.82rem;"></textarea>
+}' style="font-family: var(--font-mono); font-size: 0.82rem;"></textarea>
       </div>
 
       <div class="modal-footer">
         <button id="closeSetupModalBtn" class="btn-ghost" type="button">Cancel</button>
         <button id="saveFirebaseConfigBtn" class="btn-primary" type="button">Save &amp; Connect</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Live Camera / Selfie Capture -->
+  <div id="cameraModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cameraModalTitle">
+    <div class="modal-card camera-modal-card">
+      <div class="modal-header">
+        <h3 id="cameraModalTitle">Live Camera</h3>
+        <p id="cameraModalSubtitle">Take a quick picture for the room</p>
+      </div>
+
+      <div class="modal-body camera-modal-body">
+        <!-- Live Viewfinder Section -->
+        <div class="camera-viewfinder-container" id="cameraViewfinderState">
+          <video id="cameraVideo" autoplay playsinline muted></video>
+          <canvas id="cameraCanvas" style="display: none;"></canvas>
+          <div class="camera-loading-overlay" id="cameraLoadingOverlay">
+            <span>Starting camera...</span>
+          </div>
+        </div>
+
+        <!-- Captured Preview Section (Shown once picture is taken) -->
+        <div class="camera-preview-container" id="cameraPreviewState" style="display: none;">
+          <img id="capturedPhotoImg" src="" alt="Captured picture">
+          <div class="form-group" style="margin-top: 14px; width: 100%;">
+            <input 
+              type="text" 
+              id="cameraCaptionInput" 
+              placeholder="Add an optional note with this photo..." 
+              autocomplete="off"
+              maxlength="140"
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Footer -->
+      <div class="modal-footer camera-modal-footer">
+        <!-- State 1 Controls: Live Camera -->
+        <div class="camera-controls-live" id="cameraLiveControls">
+          <button type="button" class="btn-ghost" id="cancelCameraBtn">Cancel</button>
+          <button type="button" class="btn-shutter" id="shutterBtn" title="Take picture" aria-label="Take picture">
+            <span class="shutter-inner"></span>
+          </button>
+          <button type="button" class="btn-ghost" id="switchCameraBtn" title="Switch camera" style="visibility: hidden;">Flip</button>
+        </div>
+
+        <!-- State 2 Controls: Photo Taken (Send / Discard) -->
+        <div class="camera-controls-preview" id="cameraPreviewControls" style="display: none;">
+          <button type="button" class="btn-ghost" id="discardSnapshotBtn">Discard</button>
+          <button type="button" class="btn-primary" id="sendSnapshotBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Lightbox / Full view -->
+  <div id="imageLightboxModal" class="modal-backdrop image-lightbox-backdrop" role="dialog" aria-modal="true">
+    <div class="lightbox-content">
+      <button type="button" class="lightbox-close-btn" id="lightboxCloseBtn" aria-label="Close photo">&times;</button>
+      <img id="lightboxImg" src="" alt="Full view">
+      <p id="lightboxCaption" class="lightbox-caption"></p>
     </div>
   </div>
 
@@ -470,4 +523,5 @@
   <script src="js/db.js"></script>
   <script src="js/room.js"></script>
 </body>
+
 </html>

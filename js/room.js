@@ -2,7 +2,8 @@
  * Day Room - Room View Logic
  * 
  * Manages participant slots, live stopwatch, Pomodoro sessions with sound/notifications,
- * water tracking, timeline synchronization, message streams, and deletion operations.
+ * water tracking, live selfie/camera capture, timeline synchronization, message streams,
+ * and deletion operations.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -72,11 +73,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const quickMoreBtn = document.getElementById("quickMoreBtn");
   const expandedTagsPanel = document.getElementById("expandedTagsPanel");
 
-  // Messages
+  // Messages & Camera
   const messagesStream = document.getElementById("messagesStream");
   const messagesEmptyState = document.getElementById("messagesEmptyState");
   const messageForm = document.getElementById("messageForm");
   const messageInput = document.getElementById("messageInput");
+  const openCameraBtn = document.getElementById("openCameraBtn");
+
+  // Live Camera Modal Elements
+  const cameraModal = document.getElementById("cameraModal");
+  const cameraModalTitle = document.getElementById("cameraModalTitle");
+  const cameraModalSubtitle = document.getElementById("cameraModalSubtitle");
+  const cameraViewfinderState = document.getElementById("cameraViewfinderState");
+  const cameraVideo = document.getElementById("cameraVideo");
+  const cameraCanvas = document.getElementById("cameraCanvas");
+  const cameraLoadingOverlay = document.getElementById("cameraLoadingOverlay");
+  const cameraPreviewState = document.getElementById("cameraPreviewState");
+  const capturedPhotoImg = document.getElementById("capturedPhotoImg");
+  const cameraCaptionInput = document.getElementById("cameraCaptionInput");
+  const cameraLiveControls = document.getElementById("cameraLiveControls");
+  const cameraPreviewControls = document.getElementById("cameraPreviewControls");
+  const cancelCameraBtn = document.getElementById("cancelCameraBtn");
+  const shutterBtn = document.getElementById("shutterBtn");
+  const switchCameraBtn = document.getElementById("switchCameraBtn");
+  const discardSnapshotBtn = document.getElementById("discardSnapshotBtn");
+  const sendSnapshotBtn = document.getElementById("sendSnapshotBtn");
+
+  // Image Lightbox Elements
+  const imageLightboxModal = document.getElementById("imageLightboxModal");
+  const lightboxImg = document.getElementById("lightboxImg");
+  const lightboxCaption = document.getElementById("lightboxCaption");
+  const lightboxCloseBtn = document.getElementById("lightboxCloseBtn");
 
   // Modals
   const joinRoomModal = document.getElementById("joinRoomModal");
@@ -122,6 +149,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeTimerData = null;
   let hasJoined = false;
   let isAutoProgressing = false;
+
+  // Live Camera State
+  let activeMediaStream = null;
+  let capturedSnapshotDataUrl = null;
+  let currentFacingMode = "user"; // "user" (selfie)
 
   // Selected Pomodoro configuration preset
   let selectedPomodoroConfig = {
@@ -274,7 +306,194 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }
 
-  // 5. Global 1-Second Interval Ticker
+  // 5. Live Selfie Camera Functions
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast("Camera not supported on this browser.");
+      return;
+    }
+
+    // Reset UI to live viewfinder state
+    capturedSnapshotDataUrl = null;
+    cameraViewfinderState.style.display = "flex";
+    cameraPreviewState.style.display = "none";
+    cameraLiveControls.style.display = "flex";
+    cameraPreviewControls.style.display = "none";
+    cameraLoadingOverlay.style.display = "flex";
+    cameraLoadingOverlay.innerHTML = "<span>Starting camera...</span>";
+    cameraModalTitle.textContent = "Live Camera";
+    cameraModalSubtitle.textContent = "Take a quick picture for the room";
+
+    cameraModal.classList.add("active");
+
+    try {
+      if (activeMediaStream) {
+        stopCamera();
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: currentFacingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 960 }
+        },
+        audio: false
+      });
+
+      activeMediaStream = stream;
+      cameraVideo.srcObject = stream;
+      await cameraVideo.play();
+      cameraLoadingOverlay.style.display = "none";
+    } catch (err) {
+      console.error("Camera access error:", err);
+      cameraLoadingOverlay.innerHTML = "<span>Camera access denied or unavailable.</span>";
+      showToast("Could not access camera. Please allow permissions.");
+    }
+  }
+
+  function stopCamera() {
+    if (activeMediaStream) {
+      activeMediaStream.getTracks().forEach((track) => track.stop());
+      activeMediaStream = null;
+    }
+    if (cameraVideo) {
+      cameraVideo.srcObject = null;
+    }
+  }
+
+  function takeSnapshot() {
+    if (!cameraVideo || !cameraVideo.videoWidth) {
+      showToast("Camera is not ready yet.");
+      return;
+    }
+
+    const videoWidth = cameraVideo.videoWidth;
+    const videoHeight = cameraVideo.videoHeight;
+
+    // Scale to max 640px for super fast, lightweight ~20KB Firebase payload
+    let targetWidth = videoWidth;
+    let targetHeight = videoHeight;
+    const maxDim = 640;
+
+    if (targetWidth > maxDim || targetHeight > maxDim) {
+      if (targetWidth > targetHeight) {
+        targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+        targetWidth = maxDim;
+      } else {
+        targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+        targetHeight = maxDim;
+      }
+    }
+
+    cameraCanvas.width = targetWidth;
+    cameraCanvas.height = targetHeight;
+    const ctx = cameraCanvas.getContext("2d");
+
+    // Mirror image for natural selfie result
+    if (currentFacingMode === "user") {
+      ctx.translate(targetWidth, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(cameraVideo, 0, 0, targetWidth, targetHeight);
+
+    let dataUrl = cameraCanvas.toDataURL("image/jpeg", 0.70);
+
+    capturedSnapshotDataUrl = dataUrl;
+    capturedPhotoImg.src = dataUrl;
+
+    // Stop live camera hardware
+    stopCamera();
+
+    // Prepopulate caption if user typed note in input
+    if (cameraCaptionInput) {
+      cameraCaptionInput.value = messageInput ? messageInput.value.trim() : "";
+    }
+
+    // Switch to preview state
+    cameraViewfinderState.style.display = "none";
+    cameraPreviewState.style.display = "flex";
+    cameraLiveControls.style.display = "none";
+    cameraPreviewControls.style.display = "flex";
+    cameraModalTitle.textContent = "Photo Taken";
+    cameraModalSubtitle.textContent = "Send or discard your picture";
+
+    setTimeout(() => {
+      if (cameraCaptionInput) cameraCaptionInput.focus();
+    }, 100);
+  }
+
+  function discardSnapshot() {
+    capturedSnapshotDataUrl = null;
+    stopCamera();
+    cameraModal.classList.remove("active");
+    showToast("Picture discarded.");
+  }
+
+  async function sendSnapshot() {
+    if (!capturedSnapshotDataUrl || !hasJoined || !mySlot) return;
+
+    const caption = cameraCaptionInput ? cameraCaptionInput.value.trim() : "";
+    const photoToSend = capturedSnapshotDataUrl;
+
+    capturedSnapshotDataUrl = null;
+    stopCamera();
+    cameraModal.classList.remove("active");
+    if (messageInput) messageInput.value = "";
+    if (cameraCaptionInput) cameraCaptionInput.value = "";
+
+    try {
+      await DayRoomDB.sendMessage(roomId, mySlot, userName, userId, caption, photoToSend);
+      showToast("Photo sent to room!");
+    } catch (err) {
+      console.error("Failed to send photo:", err);
+      showToast("Failed to send picture. Check connection.");
+    }
+  }
+
+  // Camera event listeners
+  if (openCameraBtn) {
+    openCameraBtn.addEventListener("click", () => {
+      if (!hasJoined || !mySlot) {
+        showToast("Please enter your name first.");
+        return;
+      }
+      startCamera();
+    });
+  }
+
+  if (shutterBtn) {
+    shutterBtn.addEventListener("click", () => takeSnapshot());
+  }
+
+  if (cancelCameraBtn) {
+    cancelCameraBtn.addEventListener("click", () => {
+      stopCamera();
+      cameraModal.classList.remove("active");
+    });
+  }
+
+  if (discardSnapshotBtn) {
+    discardSnapshotBtn.addEventListener("click", () => discardSnapshot());
+  }
+
+  if (sendSnapshotBtn) {
+    sendSnapshotBtn.addEventListener("click", () => sendSnapshot());
+  }
+
+  // Lightbox close handlers
+  if (lightboxCloseBtn && imageLightboxModal) {
+    lightboxCloseBtn.addEventListener("click", () => {
+      imageLightboxModal.classList.remove("active");
+    });
+    imageLightboxModal.addEventListener("click", (e) => {
+      if (e.target === imageLightboxModal) {
+        imageLightboxModal.classList.remove("active");
+      }
+    });
+  }
+
+  // 6. Global 1-Second Interval Ticker
   setInterval(() => {
     const now = Date.now();
 
@@ -334,7 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }, 1000);
 
-  // 6. Realtime Firebase Subscription
+  // 7. Realtime Firebase Subscription
   function initRoomSubscription() {
     if (!DayRoomDB.isReady()) {
       roomStatusText.textContent = "Firebase unconfigured";
@@ -359,6 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
       roomId,
       (data, exists) => {
         if (!exists) {
+          // Room does not exist yet; create it
           DayRoomDB.createRoom(roomId).then(() => {
             console.log("Room initialized:", roomId);
           }).catch(err => {
@@ -378,7 +598,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  // 7. Handle Room Data & Slot Assignment
+  // 8. Handle Room Data & Slot Assignment
   function handleRoomDataUpdate(data) {
     const users = data.users || {};
     const userA = users.userA || {};
@@ -423,7 +643,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderMessages(data.messages || {});
   }
 
-  // 8. Join Modal Prompts
+  // 9. Join Modal Prompts
   let pendingSlotToClaim = null;
   function promptJoinModal(slot) {
     pendingSlotToClaim = slot;
@@ -464,7 +684,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 9. Update Navbar Status
+  // 10. Update Navbar Status
   function updateRoomStatus(userA, userB) {
     const nameA = userA.name || "Person A";
     const nameB = userB.name || (userA.id ? "Waiting for companion..." : "Person B");
@@ -478,7 +698,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 10. Render Person Column (A or B)
+  // 11. Render Person Column (A or B)
   function renderPersonColumn(slotKey, userData, nameEl, badgeEl, listEl, emptyEl, footerEl) {
     const isMe = (mySlot === slotKey);
     const hasPerson = Boolean(userData && userData.name);
@@ -684,7 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 11. Render My Controls Timer & Pomodoro State
+  // 12. Render My Controls Timer & Pomodoro State
   function renderMyTimerControls(myUserData) {
     if (!myUserData) return;
 
@@ -741,7 +961,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 12. Standard Stopwatch Handlers
+  // 13. Standard Stopwatch Handlers
   startTimerOpenBtn.addEventListener("click", () => {
     getAudioContext();
     requestNotificationPermission();
@@ -790,7 +1010,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 13. Pomodoro Modal & Session Handlers
+  // 14. Pomodoro Modal & Session Handlers
   if (startPomodoroOpenBtn) {
     startPomodoroOpenBtn.addEventListener("click", () => {
       getAudioContext();
@@ -864,7 +1084,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const logId = activeTimerData.logId;
 
     if (currentPhase === "work") {
-      // Transition from focus to break
       try {
         notifyPhaseEnd(
           "Focus Phase Finished",
@@ -876,7 +1095,6 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Update pomodoro phase error:", err);
       }
     } else {
-      // Transition from break to next focus cycle or finish session
       if (currentCycle < totalCycles) {
         try {
           notifyPhaseEnd(
@@ -889,7 +1107,6 @@ document.addEventListener("DOMContentLoaded", () => {
           console.error("Update pomodoro cycle error:", err);
         }
       } else {
-        // All cycles completed
         notifyPhaseEnd(
           "Pomodoro Session Complete",
           `Congratulations! You finished all ${totalCycles} cycles.`
@@ -932,7 +1149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Water Tracker Click Handlers (allow clicking tracker directly to increment)
+  // Water Tracker Click Handlers
   function setupWaterTrackerClick(trackerEl, slot) {
     if (!trackerEl) return;
     trackerEl.style.cursor = "pointer";
@@ -954,7 +1171,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupWaterTrackerClick(personAWaterTracker, "userA");
   setupWaterTrackerClick(personBWaterTracker, "userB");
 
-  // 14. Custom Log Submission
+  // 15. Custom Log Submission
   customLogForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = customLogInput.value.trim();
@@ -974,7 +1191,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 15. Quick Logs Click
+  // 16. Quick Logs Click
   quickLogButtons.forEach((btn) => {
     btn.addEventListener("click", async () => {
       const text = btn.getAttribute("data-log");
@@ -1003,7 +1220,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 16. Delete All Logs
+  // 17. Delete All Logs
   function setupDeleteAllHandlers(btn, slot) {
     if (!btn) return;
     btn.addEventListener("click", () => {
@@ -1032,7 +1249,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 17. Messages Rendering & Sending
+  // 18. Render Messages Stream
   function renderMessages(messagesObj) {
     const rawMessages = Object.values(messagesObj || {});
     
@@ -1062,7 +1279,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const bubbleEl = document.createElement("div");
       bubbleEl.className = "message-bubble";
-      bubbleEl.textContent = msg.text || "";
+
+      // If message includes an image (selfie/camera snapshot)
+      if (msg.imageUrl) {
+        const photoWrapper = document.createElement("div");
+        photoWrapper.className = "message-photo-wrapper";
+
+        const imgEl = document.createElement("img");
+        imgEl.src = msg.imageUrl;
+        imgEl.alt = "IRL Photo";
+        imgEl.className = "message-photo";
+        imgEl.loading = "lazy";
+
+        imgEl.addEventListener("click", () => {
+          if (lightboxImg) lightboxImg.src = msg.imageUrl;
+          if (lightboxCaption) lightboxCaption.textContent = msg.text || "";
+          if (imageLightboxModal) imageLightboxModal.classList.add("active");
+        });
+
+        photoWrapper.appendChild(imgEl);
+        bubbleEl.appendChild(photoWrapper);
+      }
+
+      if (msg.text) {
+        const textEl = document.createElement("div");
+        textEl.className = msg.imageUrl ? "message-caption" : "message-text";
+        textEl.textContent = msg.text;
+        bubbleEl.appendChild(textEl);
+      }
 
       itemEl.appendChild(metaEl);
       itemEl.appendChild(bubbleEl);
@@ -1103,7 +1347,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/'/g, "&#039;");
   }
 
-  // 18. Initialize Subscription
+  // 19. Initialize Subscription
   initRoomSubscription();
 });
 

@@ -34,7 +34,7 @@ const DayRoomDB = (function () {
     }
 
     const roomRef = db.ref(`rooms/${roomId}`);
-    
+
     // Check if room already exists
     const snapshot = await roomRef.once("value");
     if (snapshot.exists()) {
@@ -87,7 +87,7 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) {
       if (onErrorCallback) onErrorCallback(new Error("Firebase is not configured."));
-      return () => {};
+      return () => { };
     }
 
     const roomRef = db.ref(`rooms/${roomId}`);
@@ -138,7 +138,7 @@ const DayRoomDB = (function () {
 
     const logsRef = db.ref(`rooms/${roomId}/users/${slot}/logs`);
     const newLogRef = logsRef.push();
-    
+
     const entry = {
       id: newLogRef.key,
       text: logData.text || "",
@@ -369,8 +369,9 @@ const DayRoomDB = (function () {
    * @param {string} authorName 
    * @param {string} authorId 
    * @param {string} text 
+   * @param {string|null} imageUrl 
    */
-  async function sendMessage(roomId, authorSlot, authorName, authorId, text) {
+  async function sendMessage(roomId, authorSlot, authorName, authorId, text, imageUrl = null) {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
@@ -382,9 +383,13 @@ const DayRoomDB = (function () {
       author: authorName,
       authorSlot: authorSlot,
       authorId: authorId,
-      text: text.trim(),
+      text: (text || "").trim(),
       timestamp: Date.now()
     };
+
+    if (imageUrl) {
+      messageData.imageUrl = imageUrl;
+    }
 
     await newMsgRef.set(messageData);
     return messageData;
