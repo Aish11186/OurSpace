@@ -57,6 +57,10 @@ const DayRoomDB = (function () {
           activeTimer: null
         }
       },
+      tools: {
+        waterTracker: false,
+        quickLogs: false
+      },
       messages: {}
     };
 
@@ -332,6 +336,10 @@ const DayRoomDB = (function () {
   async function deleteLog(roomId, slot, logId) {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
+    if (!logId) {
+      console.error("deleteLog: missing logId");
+      return;
+    }
 
     // Check if this log is currently the active timer
     const activeSnapshot = await db.ref(`rooms/${roomId}/users/${slot}/activeTimer`).once("value");
@@ -395,6 +403,87 @@ const DayRoomDB = (function () {
     return messageData;
   }
 
+  /**
+   * Add a todo item for a user slot
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} text 
+   */
+  async function addTodo(roomId, slot, text) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const todosRef = db.ref(`rooms/${roomId}/users/${slot}/todos`);
+    const newTodoRef = todosRef.push();
+
+    const todoItem = {
+      id: newTodoRef.key,
+      text: (text || "").trim(),
+      completed: false,
+      createdAt: Date.now(),
+      completedAt: null
+    };
+
+    await newTodoRef.set(todoItem);
+    return todoItem;
+  }
+
+  /**
+   * Toggle completion status of a todo item
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} todoId 
+   * @param {boolean} isCompleted 
+   */
+  async function toggleTodo(roomId, slot, todoId, isCompleted) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+    if (!todoId) {
+      console.error("toggleTodo: missing todoId");
+      return;
+    }
+
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/todos/${todoId}/completed`] = isCompleted;
+    updates[`rooms/${roomId}/users/${slot}/todos/${todoId}/completedAt`] = isCompleted ? Date.now() : null;
+
+    await db.ref().update(updates);
+  }
+
+  /**
+   * Delete an individual todo item
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} todoId 
+   */
+  async function deleteTodo(roomId, slot, todoId) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+    if (!todoId) {
+      console.error("deleteTodo: missing todoId");
+      return;
+    }
+
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/todos/${todoId}`] = null;
+    await db.ref().update(updates);
+  }
+
+  /**
+   * Toggle or set an active tool for the room
+   * @param {string} roomId 
+   * @param {string} toolName 
+   * @param {boolean} isActive 
+   */
+  async function setToolActive(roomId, toolName, isActive) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const updates = {};
+    updates[`rooms/${roomId}/tools/${toolName}`] = Boolean(isActive);
+    await db.ref().update(updates);
+  }
+
   return {
     isReady,
     createRoom,
@@ -409,6 +498,10 @@ const DayRoomDB = (function () {
     finishPomodoro,
     deleteLog,
     deleteAllLogs,
-    sendMessage
+    sendMessage,
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    setToolActive
   };
 })();

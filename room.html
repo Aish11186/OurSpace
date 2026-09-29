@@ -62,8 +62,8 @@
           <span class="column-badge badge-waiting" id="personABadge">Waiting...</span>
         </div>
 
-        <!-- Water Tracker for Person A -->
-        <div class="water-tracker-container" id="personAWaterTracker">
+        <!-- Water Tracker for Person A (Toggled via Toolbox) -->
+        <div class="water-tracker-container" id="personAWaterTracker" style="display: none;">
           <div class="water-tracker-header">
             <span class="water-tracker-title">Water</span>
             <span class="water-tracker-count" id="personAWaterCount">0/9 glasses</span>
@@ -78,6 +78,39 @@
             <div class="water-segment" data-index="7"></div>
             <div class="water-segment" data-index="8"></div>
             <div class="water-segment" data-index="9"></div>
+          </div>
+        </div>
+
+        <!-- To-do List for Person A -->
+        <div class="todo-section" id="personATodoSection">
+          <div class="todo-header">
+            <div class="todo-header-title">
+              <span class="todo-title-label">To-do list</span>
+              <span class="todo-counter" id="personATodoCount">0/0</span>
+            </div>
+          </div>
+
+          <!-- Add Task Form (Active for owner) -->
+          <form class="todo-input-form" id="personATodoForm" style="display: none;">
+            <input 
+              type="text" 
+              class="todo-input" 
+              id="personATodoInput" 
+              placeholder="Add a task..." 
+              maxlength="80" 
+              autocomplete="off"
+            >
+            <button type="submit" class="btn-todo-add" id="personATodoAddBtn" title="Add task">
+              +
+            </button>
+          </form>
+
+          <!-- List of Todos -->
+          <div class="todo-items-list" id="personATodoList">
+            <!-- Rendered dynamically via JS -->
+          </div>
+          <div class="todo-empty-state" id="personATodoEmpty">
+            <span>No tasks yet</span>
           </div>
         </div>
 
@@ -114,6 +147,9 @@
             <button id="startTimerOpenBtn" class="btn-start-timer-main" type="button">
               Start timer
             </button>
+            <div class="timer-idle-divider">
+              <span>or focus with</span>
+            </div>
             <button id="startPomodoroOpenBtn" class="btn-pomodoro-main" type="button">
               Start Pomodoro session
             </button>
@@ -168,8 +204,8 @@
           </form>
         </div>
 
-        <!-- Quick Log Options -->
-        <div class="quick-log-section">
+        <!-- Quick Log Options (Toggled via Toolbox) -->
+        <div class="quick-log-section" id="quickLogSection" style="display: none;">
           <span class="section-sublabel">Quick log</span>
           <div class="quick-log-grid">
             <button type="button" class="quick-chip" data-log="Water consumed">Water consumed</button>
@@ -220,8 +256,8 @@
           <span class="column-badge badge-waiting" id="personBBadge">Waiting...</span>
         </div>
 
-        <!-- Water Tracker for Person B -->
-        <div class="water-tracker-container" id="personBWaterTracker">
+        <!-- Water Tracker for Person B (Toggled via Toolbox) -->
+        <div class="water-tracker-container" id="personBWaterTracker" style="display: none;">
           <div class="water-tracker-header">
             <span class="water-tracker-title">Water</span>
             <span class="water-tracker-count" id="personBWaterCount">0/9 glasses</span>
@@ -236,6 +272,39 @@
             <div class="water-segment" data-index="7"></div>
             <div class="water-segment" data-index="8"></div>
             <div class="water-segment" data-index="9"></div>
+          </div>
+        </div>
+
+        <!-- To-do List for Person B -->
+        <div class="todo-section" id="personBTodoSection">
+          <div class="todo-header">
+            <div class="todo-header-title">
+              <span class="todo-title-label">To-do list</span>
+              <span class="todo-counter" id="personBTodoCount">0/0</span>
+            </div>
+          </div>
+
+          <!-- Add Task Form (Active for owner) -->
+          <form class="todo-input-form" id="personBTodoForm" style="display: none;">
+            <input 
+              type="text" 
+              class="todo-input" 
+              id="personBTodoInput" 
+              placeholder="Add a task..." 
+              maxlength="80" 
+              autocomplete="off"
+            >
+            <button type="submit" class="btn-todo-add" id="personBTodoAddBtn" title="Add task">
+              +
+            </button>
+          </form>
+
+          <!-- List of Todos -->
+          <div class="todo-items-list" id="personBTodoList">
+            <!-- Rendered dynamically via JS -->
+          </div>
+          <div class="todo-empty-state" id="personBTodoEmpty">
+            <span>No tasks yet</span>
           </div>
         </div>
 
@@ -299,6 +368,83 @@
     </section>
 
   </main>
+
+  <!-- FLOATING TOOLBOX (Bottom Left) -->
+  <aside class="toolbox-widget" id="toolboxWidget" aria-label="Room Toolbox">
+    <!-- Collapsible Toolbox Panel -->
+    <div class="toolbox-panel" id="toolboxPanel" role="dialog" aria-modal="false" aria-labelledby="toolboxTitle" style="display: none;">
+      <div class="toolbox-panel-header">
+        <div class="toolbox-title-group">
+          <div class="toolbox-icon-badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+            </svg>
+          </div>
+          <div>
+            <h4 id="toolboxTitle" class="toolbox-title">Room Toolbox</h4>
+            <span class="toolbox-subtitle">Shared tools · Synced with companion</span>
+          </div>
+        </div>
+        <button type="button" class="toolbox-close-btn" id="toolboxCloseBtn" aria-label="Close toolbox">&times;</button>
+      </div>
+
+      <div class="toolbox-panel-body">
+        <!-- Water Meter Tool Card -->
+        <div class="tool-item-card" id="waterToolCard">
+          <div class="tool-item-icon water-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+            </svg>
+          </div>
+          <div class="tool-item-info">
+            <div class="tool-item-header">
+              <span class="tool-item-name">Water Tracker</span>
+              <span class="tool-live-badge" id="waterToolBadge">Off</span>
+            </div>
+            <p class="tool-item-desc">9-glass daily hydration meter on day timeline</p>
+          </div>
+          <button type="button" class="tool-toggle-btn" id="waterToolToggleBtn" aria-pressed="false" title="Toggle Water Tracker for room">
+            <span class="toggle-slider"></span>
+          </button>
+        </div>
+
+        <!-- Quick Logs Tool Card -->
+        <div class="tool-item-card" id="quickLogsToolCard">
+          <div class="tool-item-icon quicklogs-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+          </div>
+          <div class="tool-item-info">
+            <div class="tool-item-header">
+              <span class="tool-item-name">Quick Logs</span>
+              <span class="tool-live-badge" id="quickLogsToolBadge">Off</span>
+            </div>
+            <p class="tool-item-desc">One-tap activity chips (Meal, Study, Workout...)</p>
+          </div>
+          <button type="button" class="tool-toggle-btn" id="quickLogsToggleBtn" aria-pressed="false" title="Toggle Quick Logs for room">
+            <span class="toggle-slider"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbox-panel-footer">
+        <span>Active tools appear for both participants in real-time</span>
+      </div>
+    </div>
+
+    <!-- Floating Trigger Button (Bottom Left) -->
+    <button type="button" class="toolbox-trigger-btn" id="toolboxTriggerBtn" aria-label="Open Room Toolbox" aria-expanded="false" title="Room Toolbox">
+      <div class="toolbox-trigger-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+        </svg>
+      </div>
+      <span class="toolbox-trigger-label">Toolbox</span>
+      <span class="toolbox-active-indicator" id="toolboxActiveCount" style="display: none;">1</span>
+    </button>
+  </aside>
 
   <!-- MODAL: User Name / Join Room Prompt -->
   <div id="joinRoomModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="joinModalTitle">

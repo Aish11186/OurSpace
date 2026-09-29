@@ -46,6 +46,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const personBWaterCount = document.getElementById("personBWaterCount");
   const personBWaterMeter = document.getElementById("personBWaterMeter");
 
+  // Floating Toolbox Elements
+  const toolboxWidget = document.getElementById("toolboxWidget");
+  const toolboxTriggerBtn = document.getElementById("toolboxTriggerBtn");
+  const toolboxPanel = document.getElementById("toolboxPanel");
+  const toolboxCloseBtn = document.getElementById("toolboxCloseBtn");
+  const waterToolToggleBtn = document.getElementById("waterToolToggleBtn");
+  const waterToolBadge = document.getElementById("waterToolBadge");
+  const waterToolCard = document.getElementById("waterToolCard");
+  const quickLogsToggleBtn = document.getElementById("quickLogsToggleBtn");
+  const quickLogsToolBadge = document.getElementById("quickLogsToolBadge");
+  const quickLogsToolCard = document.getElementById("quickLogsToolCard");
+  const toolboxActiveCount = document.getElementById("toolboxActiveCount");
+
+  // Todo Lists
+  const personATodoSection = document.getElementById("personATodoSection");
+  const personATodoCount = document.getElementById("personATodoCount");
+  const personATodoForm = document.getElementById("personATodoForm");
+  const personATodoInput = document.getElementById("personATodoInput");
+  const personATodoList = document.getElementById("personATodoList");
+  const personATodoEmpty = document.getElementById("personATodoEmpty");
+
+  const personBTodoSection = document.getElementById("personBTodoSection");
+  const personBTodoCount = document.getElementById("personBTodoCount");
+  const personBTodoForm = document.getElementById("personBTodoForm");
+  const personBTodoInput = document.getElementById("personBTodoInput");
+  const personBTodoList = document.getElementById("personBTodoList");
+  const personBTodoEmpty = document.getElementById("personBTodoEmpty");
+
   // My Controls: Timer & Pomodoro
   const timerControlSection = document.getElementById("timerControlSection");
   const timerIdleState = document.getElementById("timerIdleState");
@@ -69,6 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // My Controls: Logs & Quick Actions
   const customLogForm = document.getElementById("customLogForm");
   const customLogInput = document.getElementById("customLogInput");
+  const quickLogSection = document.getElementById("quickLogSection");
   const quickLogButtons = document.querySelectorAll(".quick-chip[data-log]");
   const quickMoreBtn = document.getElementById("quickMoreBtn");
   const expandedTagsPanel = document.getElementById("expandedTagsPanel");
@@ -632,6 +661,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update Room Header Status
     updateRoomStatus(userA, userB);
 
+    // Render Room Toolbox State
+    renderToolboxState(data.tools || {});
+
     // Render Columns
     renderPersonColumn("userA", userA, personAName, personABadge, personATimelineList, personAEmptyState, personAFooter);
     renderPersonColumn("userB", userB, personBName, personBBadge, personBTimelineList, personBEmptyState, personBFooter);
@@ -721,12 +753,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Process Logs
-    const rawLogs = (userData && userData.logs) ? Object.values(userData.logs) : [];
+    const rawLogs = (userData && userData.logs)
+      ? Object.entries(userData.logs).map(([key, val]) => {
+          if (val && typeof val === "object") {
+            return { ...val, id: val.id || key };
+          }
+          return { id: key, text: String(val || ""), type: "custom" };
+        })
+      : [];
 
-    // Render Water Tracker for this person
+    // Render Water Tracker for this person (only visible if enabled in room tools)
+    const isWaterTrackerActive = Boolean(currentRoomData && currentRoomData.tools && currentRoomData.tools.waterTracker);
     const waterTrackerEl = (slotKey === "userA") ? personAWaterTracker : personBWaterTracker;
     const waterCountEl = (slotKey === "userA") ? personAWaterCount : personBWaterCount;
     const waterMeterEl = (slotKey === "userA") ? personAWaterMeter : personBWaterMeter;
+
+    if (waterTrackerEl) {
+      waterTrackerEl.style.display = isWaterTrackerActive ? "block" : "none";
+    }
 
     const waterLogsCount = rawLogs.filter(l => l.text && l.text.toLowerCase().includes("water")).length;
     const clampedWater = Math.min(9, waterLogsCount);
@@ -748,6 +792,112 @@ document.addEventListener("DOMContentLoaded", () => {
       segments.forEach((seg, idx) => {
         seg.classList.toggle("filled", (idx + 1) <= clampedWater);
       });
+    }
+
+    // Render Todo List for this person
+    const todoFormEl = (slotKey === "userA") ? personATodoForm : personBTodoForm;
+    const todoCountEl = (slotKey === "userA") ? personATodoCount : personBTodoCount;
+    const todoListEl = (slotKey === "userA") ? personATodoList : personBTodoList;
+    const todoEmptyEl = (slotKey === "userA") ? personATodoEmpty : personBTodoEmpty;
+
+    if (todoFormEl) {
+      todoFormEl.style.display = isMe ? "flex" : "none";
+    }
+
+    const rawTodos = (userData && userData.todos)
+      ? Object.entries(userData.todos).map(([key, val]) => {
+          if (val && typeof val === "object") {
+            return { ...val, id: val.id || key };
+          }
+          return { id: key, text: String(val || ""), completed: false };
+        })
+      : [];
+    const totalTodos = rawTodos.length;
+    const completedTodos = rawTodos.filter(t => t.completed).length;
+
+    if (todoCountEl) {
+      todoCountEl.textContent = `${completedTodos}/${totalTodos}`;
+    }
+
+    if (rawTodos.length === 0) {
+      if (todoListEl) todoListEl.innerHTML = "";
+      if (todoEmptyEl) todoEmptyEl.style.display = "block";
+    } else {
+      if (todoEmptyEl) todoEmptyEl.style.display = "none";
+      if (todoListEl) {
+        // Sort: incomplete items first (newest to oldest), completed items at the end (newest to oldest)
+        rawTodos.sort((a, b) => {
+          if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+          }
+          const timeA = a.createdAt || 0;
+          const timeB = b.createdAt || 0;
+          return timeB - timeA;
+        });
+
+        todoListEl.innerHTML = "";
+
+        rawTodos.forEach((todo) => {
+          const itemEl = document.createElement("div");
+          itemEl.className = "todo-item" + (todo.completed ? " completed" : "");
+
+          const checkBtn = document.createElement("button");
+          checkBtn.type = "button";
+          checkBtn.className = "todo-checkbox-btn" + (todo.completed ? " checked" : "");
+          checkBtn.title = isMe ? (todo.completed ? "Mark uncompleted" : "Mark completed") : (todo.completed ? "Completed" : "Incomplete");
+          checkBtn.innerHTML = `
+            <svg class="todo-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          `;
+
+          if (isMe) {
+            checkBtn.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!todo.id) return;
+              DayRoomDB.toggleTodo(roomId, slotKey, todo.id, !todo.completed).catch((err) => {
+                console.error("Toggle todo error:", err);
+                showToast("Failed to update task.");
+              });
+            });
+          } else {
+            checkBtn.disabled = true;
+          }
+
+          const textEl = document.createElement("span");
+          textEl.className = "todo-text" + (todo.completed ? " completed" : "");
+          textEl.textContent = todo.text;
+
+          itemEl.appendChild(checkBtn);
+          itemEl.appendChild(textEl);
+
+          if (isMe) {
+            const deleteBtn = document.createElement("button");
+            deleteBtn.type = "button";
+            deleteBtn.className = "todo-delete-btn";
+            deleteBtn.innerHTML = "&times;";
+            deleteBtn.title = "Delete task";
+            deleteBtn.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!todo.id) {
+                console.error("Missing todo id for deletion");
+                return;
+              }
+              DayRoomDB.deleteTodo(roomId, slotKey, todo.id).then(() => {
+                showToast("Task deleted.");
+              }).catch((err) => {
+                console.error("Delete todo error:", err);
+                showToast("Failed to delete task.");
+              });
+            });
+            itemEl.appendChild(deleteBtn);
+          }
+
+          todoListEl.appendChild(itemEl);
+        });
+      }
     }
     
     if (rawLogs.length === 0) {
@@ -793,7 +943,10 @@ document.addEventListener("DOMContentLoaded", () => {
         deleteBtn.innerHTML = "&times;";
         deleteBtn.title = "Delete this log";
         deleteBtn.type = "button";
-        deleteBtn.addEventListener("click", () => {
+        deleteBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!log.id) return;
           DayRoomDB.deleteLog(roomId, slotKey, log.id).catch((err) => {
             console.error("Delete log error:", err);
             showToast("Failed to delete log.");
@@ -829,7 +982,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const elapsedInPhase = Date.now() - phaseStarted;
             const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
 
-            cardEl.innerHTML += `
+            cardEl.insertAdjacentHTML("beforeend", `
               <div class="pomodoro-badge ${isBreak ? 'badge-break' : ''}">
                 ${isBreak ? 'Break' : 'Focus'} · Cycle ${log.currentCycle || 1} of ${log.totalCycles || 4}
               </div>
@@ -844,10 +997,10 @@ document.addEventListener("DOMContentLoaded", () => {
                   ${formatCountdown(remainingMs)} left
                 </span>
               </div>
-            `;
+            `);
           } else {
             const elapsedNow = Date.now() - log.startedAt;
-            cardEl.innerHTML += `
+            cardEl.insertAdjacentHTML("beforeend", `
               <div class="timer-task-title">
                 <span>Started timer for <strong>"${escapeHtml(log.task || "Task")}"</strong></span>
               </div>
@@ -855,7 +1008,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span>Currently active · </span>
                 <span class="ticker timer-live-ticker" data-started-at="${log.startedAt}">${formatDurationShort(elapsedNow)}</span>
               </div>
-            `;
+            `);
           }
         } else {
           // Finished Timer / Pomodoro
@@ -864,7 +1017,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const durationStr = log.durationFormatted || formatDurationShort(log.duration || 0);
 
           if (isPomodoro) {
-            cardEl.innerHTML += `
+            cardEl.insertAdjacentHTML("beforeend", `
               <div class="pomodoro-badge">
                 Pomodoro · ${log.completedCycles || log.totalCycles || 1}/${log.totalCycles || 4} cycles
               </div>
@@ -876,9 +1029,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span>Duration: ${durationStr}</span>
                 ${log.finishedAt ? `<span>Finished at ${finishTimeStr}</span>` : ""}
               </div>
-            `;
+            `);
           } else {
-            cardEl.innerHTML += `
+            cardEl.insertAdjacentHTML("beforeend", `
               <div class="timer-task-title">
                 <span><strong>${escapeHtml(log.task || "Task")}</strong></span>
               </div>
@@ -887,7 +1040,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span>Duration: ${durationStr}</span>
                 ${log.finishedAt ? `<span>Finished at ${finishTimeStr}</span>` : ""}
               </div>
-            `;
+            `);
           }
         }
       } else {
@@ -1171,6 +1324,33 @@ document.addEventListener("DOMContentLoaded", () => {
   setupWaterTrackerClick(personAWaterTracker, "userA");
   setupWaterTrackerClick(personBWaterTracker, "userB");
 
+  // Todo Form Submit Handlers
+  function setupTodoFormHandler(formEl, inputEl, slotKey) {
+    if (!formEl || !inputEl) return;
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      if (!hasJoined || mySlot !== slotKey) {
+        showToast("Please enter your name first.");
+        return;
+      }
+
+      try {
+        inputEl.value = "";
+        await DayRoomDB.addTodo(roomId, slotKey, text);
+        showToast(`Added task: "${text}"`);
+      } catch (err) {
+        console.error("Add todo error:", err);
+        showToast("Failed to add task.");
+      }
+    });
+  }
+
+  setupTodoFormHandler(personATodoForm, personATodoInput, "userA");
+  setupTodoFormHandler(personBTodoForm, personBTodoInput, "userB");
+
   // 15. Custom Log Submission
   customLogForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1335,6 +1515,116 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Failed to send note.");
     }
   });
+
+  // 17. Toolbox Rendering & Handlers
+  function renderToolboxState(tools) {
+    const isWaterActive = Boolean(tools && tools.waterTracker);
+    const isQuickLogsActive = Boolean(tools && tools.quickLogs);
+
+    if (waterToolToggleBtn) {
+      waterToolToggleBtn.classList.toggle("active", isWaterActive);
+      waterToolToggleBtn.setAttribute("aria-pressed", isWaterActive ? "true" : "false");
+    }
+
+    if (waterToolBadge) {
+      waterToolBadge.textContent = isWaterActive ? "Active" : "Off";
+      waterToolBadge.classList.toggle("active", isWaterActive);
+    }
+
+    if (quickLogsToggleBtn) {
+      quickLogsToggleBtn.classList.toggle("active", isQuickLogsActive);
+      quickLogsToggleBtn.setAttribute("aria-pressed", isQuickLogsActive ? "true" : "false");
+    }
+
+    if (quickLogsToolBadge) {
+      quickLogsToolBadge.textContent = isQuickLogsActive ? "Active" : "Off";
+      quickLogsToolBadge.classList.toggle("active", isQuickLogsActive);
+    }
+
+    if (quickLogSection) {
+      quickLogSection.style.display = isQuickLogsActive ? "block" : "none";
+    }
+
+    if (toolboxActiveCount) {
+      const activeCount = (isWaterActive ? 1 : 0) + (isQuickLogsActive ? 1 : 0);
+      if (activeCount > 0) {
+        toolboxActiveCount.textContent = activeCount;
+        toolboxActiveCount.style.display = "inline-flex";
+      } else {
+        toolboxActiveCount.style.display = "none";
+      }
+    }
+  }
+
+  if (toolboxTriggerBtn && toolboxPanel) {
+    toolboxTriggerBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = toolboxPanel.style.display !== "none";
+      if (isVisible) {
+        toolboxPanel.style.display = "none";
+        toolboxTriggerBtn.classList.remove("active-open");
+        toolboxTriggerBtn.setAttribute("aria-expanded", "false");
+      } else {
+        toolboxPanel.style.display = "block";
+        toolboxTriggerBtn.classList.add("active-open");
+        toolboxTriggerBtn.setAttribute("aria-expanded", "true");
+      }
+    });
+
+    if (toolboxCloseBtn) {
+      toolboxCloseBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toolboxPanel.style.display = "none";
+        toolboxTriggerBtn.classList.remove("active-open");
+        toolboxTriggerBtn.setAttribute("aria-expanded", "false");
+      });
+    }
+
+    // Close toolbox on outside click
+    document.addEventListener("click", (e) => {
+      if (toolboxPanel.style.display !== "none" && toolboxWidget && !toolboxWidget.contains(e.target)) {
+        toolboxPanel.style.display = "none";
+        toolboxTriggerBtn.classList.remove("active-open");
+        toolboxTriggerBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Toggle water tool
+    if (waterToolToggleBtn) {
+      waterToolToggleBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const currentTools = (currentRoomData && currentRoomData.tools) ? currentRoomData.tools : {};
+        const isWaterActive = Boolean(currentTools.waterTracker);
+        const newState = !isWaterActive;
+
+        try {
+          await DayRoomDB.setToolActive(roomId, "waterTracker", newState);
+          showToast(newState ? "💧 Water tracker added to room" : "Water tracker removed from room");
+        } catch (err) {
+          console.error("Failed to toggle water tracker tool:", err);
+          showToast("Failed to update tool. Check connection.");
+        }
+      });
+    }
+
+    // Toggle quick logs tool
+    if (quickLogsToggleBtn) {
+      quickLogsToggleBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const currentTools = (currentRoomData && currentRoomData.tools) ? currentRoomData.tools : {};
+        const isQuickLogsActive = Boolean(currentTools.quickLogs);
+        const newState = !isQuickLogsActive;
+
+        try {
+          await DayRoomDB.setToolActive(roomId, "quickLogs", newState);
+          showToast(newState ? "⚡ Quick logs added to room" : "Quick logs removed from room");
+        } catch (err) {
+          console.error("Failed to toggle quick logs tool:", err);
+          showToast("Failed to update tool. Check connection.");
+        }
+      });
+    }
+  }
 
   // Helper to escape HTML in text output
   function escapeHtml(str) {
