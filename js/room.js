@@ -191,6 +191,10 @@ document.addEventListener("DOMContentLoaded", () => {
     totalCycles: 4
   };
 
+  // Message Tracking & Notification State
+  const knownMessageIds = new Set();
+  let isInitialMessagesLoaded = false;
+
   // Audio Context & Web Notifications
   let audioCtx = null;
   function getAudioContext() {
@@ -254,6 +258,37 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         new Notification(title, { body });
       } catch (e) {}
+    }
+  }
+
+  // Notify when companion sends a chat message
+  function notifyMessage(senderName) {
+    const notifText = `${senderName} sent you a message on ourspace!`;
+    playPhaseEndSound();
+    
+    // In-app toast notification
+    showToast(notifText);
+
+    // Browser Web Notification
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const notif = new Notification(notifText, {
+          body: notifText,
+          icon: "favicon.ico"
+        });
+        notif.onclick = function () {
+          window.focus();
+          this.close();
+        };
+      } catch (e) {
+        try {
+          const notif = new Notification(notifText);
+          notif.onclick = function () {
+            window.focus();
+            this.close();
+          };
+        } catch (err) {}
+      }
     }
   }
 
@@ -699,6 +734,9 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const enteredName = joinNameInput.value.trim();
     if (!enteredName) return;
+
+    getAudioContext();
+    requestNotificationPermission();
 
     userName = enteredName;
     localStorage.setItem("dayroom_user_name", userName);
@@ -1432,7 +1470,46 @@ document.addEventListener("DOMContentLoaded", () => {
   // 18. Render Messages Stream
   function renderMessages(messagesObj) {
     const rawMessages = Object.values(messagesObj || {});
+    const messageEntries = Object.entries(messagesObj || {});
     
+    // Check for incoming new messages from companion
+    if (!isInitialMessagesLoaded) {
+      // First snapshot on page load: record all existing message IDs without alerting
+      messageEntries.forEach(([key, msg]) => {
+        const id = (msg && msg.id) || key;
+        knownMessageIds.add(id);
+      });
+      isInitialMessagesLoaded = true;
+    } else {
+      let companionSenderName = null;
+      let newCompanionMsgCount = 0;
+
+      messageEntries.forEach(([key, msg]) => {
+        const id = (msg && msg.id) || key;
+        if (!knownMessageIds.has(id)) {
+          knownMessageIds.add(id);
+          const isFromMe = (msg.authorId === userId || (mySlot && msg.authorSlot === mySlot));
+          if (!isFromMe) {
+            newCompanionMsgCount++;
+            if (msg.author) {
+              companionSenderName = msg.author;
+            } else {
+              const otherSlot = mySlot === "userA" ? "userB" : "userA";
+              const otherUser = currentRoomData && currentRoomData.users && currentRoomData.users[otherSlot];
+              if (otherUser && otherUser.name) {
+                companionSenderName = otherUser.name;
+              }
+            }
+          }
+        }
+      });
+
+      if (newCompanionMsgCount > 0) {
+        const senderDisplayName = companionSenderName || "Companion";
+        notifyMessage(senderDisplayName);
+      }
+    }
+
     if (rawMessages.length === 0) {
       messagesStream.innerHTML = "";
       messagesEmptyState.style.display = "block";
@@ -1447,7 +1524,7 @@ document.addEventListener("DOMContentLoaded", () => {
     messagesStream.innerHTML = "";
 
     rawMessages.forEach((msg) => {
-      const isFromMe = (msg.authorId === userId || msg.authorSlot === mySlot);
+      const isFromMe = (msg.authorId === userId || (mySlot && msg.authorSlot === mySlot));
       const itemEl = document.createElement("div");
       itemEl.className = `message-item ${isFromMe ? "from-me" : "from-them"}`;
 
@@ -1497,10 +1574,20 @@ document.addEventListener("DOMContentLoaded", () => {
     messagesStream.scrollTop = messagesStream.scrollHeight;
   }
 
+  if (messageInput) {
+    messageInput.addEventListener("focus", () => {
+      getAudioContext();
+      requestNotificationPermission();
+    }, { once: true });
+  }
+
   messageForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
     if (!text) return;
+
+    getAudioContext();
+    requestNotificationPermission();
 
     if (!hasJoined || !mySlot) {
       showToast("Please enter your name first.");
