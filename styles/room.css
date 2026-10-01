@@ -833,14 +833,50 @@
   transform: translateY(-1px);
 }
 
+.timer-idle-options {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.timer-idle-options button {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .timer-idle-options {
+    flex-direction: column;
+  }
+}
+
+.btn-countdown-main {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #172A24;
+  color: #38B88B;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.96rem;
+  border: 1px solid rgba(56, 184, 139, 0.35);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-countdown-main:hover {
+  background-color: #1E372F;
+  border-color: rgba(56, 184, 139, 0.6);
+  color: #5FE2B5;
+  transform: translateY(-1px);
+}
+
 .btn-pomodoro-main {
   width: 100%;
-  padding: 12px 22px;
+  padding: 12px 16px;
   background-color: #1E283D;
   color: #78AEEA;
   border-radius: var(--radius-full);
   font-weight: 600;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   border: 1px solid rgba(120, 174, 234, 0.35);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
@@ -853,14 +889,32 @@
   transform: translateY(-1px);
 }
 
-/* Timer Running Box & Pomodoro Running Box */
+/* Timer Running Box, Pomodoro Running Box & Countdown Running Box */
 .timer-running-box,
-.pomodoro-running-box {
+.pomodoro-running-box,
+.countdown-running-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 10px;
+}
+
+.countdown-phase-badge {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  background-color: #172A24;
+  color: #38B88B;
+  border: 1px solid var(--pastel-mint-border);
+  letter-spacing: 0.02em;
+}
+
+.countdown-running-box .timer-running-digits {
+  color: #38B88B;
+  border-color: var(--pastel-mint-border);
 }
 
 .pomodoro-phase-badge {
@@ -1044,6 +1098,104 @@
   background-color: #2D2235;
   color: #F08CB4;
   border-color: var(--pastel-pink-border);
+}
+
+/* Focus Countdown Timeline Nodes & Badges */
+.timeline-node.node-countdown {
+  border-color: #38B88B;
+  background-color: var(--bg-surface);
+}
+
+.timeline-node.node-countdown.node-active {
+  border-color: #38B88B;
+  background-color: #38B88B;
+}
+
+.countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background-color: #172A24;
+  color: #38B88B;
+  border: 1px solid var(--pastel-mint-border);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.ticker.countdown-live-ticker {
+  background-color: var(--pastel-mint-soft);
+  border: 1px solid var(--pastel-mint-border);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  color: var(--pastel-mint-text);
+}
+
+/* Countdown Modal Styles */
+.countdown-modal-card {
+  max-width: 460px;
+}
+
+.countdown-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.countdown-input-group input {
+  width: 100%;
+  padding: 12px 85px 12px 18px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-md);
+}
+
+.countdown-input-suffix {
+  position: absolute;
+  right: 18px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.countdown-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.countdown-preset-chip {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.countdown-preset-chip:hover {
+  border-color: #38B88B;
+  color: #B4EBD8;
+  background-color: rgba(56, 184, 139, 0.1);
+}
+
+.countdown-preset-chip.active {
+  border-color: #38B88B;
+  background-color: rgba(56, 184, 139, 0.2);
+  color: #38B88B;
+  border-width: 1.5px;
 }
 
 /* Custom Log Section */

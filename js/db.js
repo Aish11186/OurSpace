@@ -350,6 +350,82 @@ const DayRoomDB = (function () {
   }
 
   /**
+   * Start a custom focus countdown timer
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} taskName 
+   * @param {number} durationMinutes 
+   */
+  async function startCountdown(roomId, slot, taskName, durationMinutes) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const now = Date.now();
+    const logsRef = db.ref(`rooms/${roomId}/users/${slot}/logs`);
+    const newLogRef = logsRef.push();
+    const logId = newLogRef.key;
+    const mins = Math.max(1, Number(durationMinutes) || 25);
+
+    const countdownLog = {
+      id: logId,
+      type: "timer",
+      timerSubtype: "countdown",
+      task: taskName.trim(),
+      durationMinutes: mins,
+      startedAt: now,
+      timestamp: now,
+      isActive: true
+    };
+
+    const activeTimerState = {
+      logId: logId,
+      task: taskName.trim(),
+      type: "countdown",
+      timerSubtype: "countdown",
+      durationMinutes: mins,
+      startedAt: now
+    };
+
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}`] = countdownLog;
+    updates[`rooms/${roomId}/users/${slot}/activeTimer`] = activeTimerState;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
+    await db.ref().update(updates);
+    return countdownLog;
+  }
+
+  /**
+   * Finish a custom focus countdown timer
+   * @param {string} roomId 
+   * @param {"userA"|"userB"} slot 
+   * @param {string} logId 
+   * @param {number} startedAt 
+   * @param {number} durationMinutes 
+   * @param {string} durationFormatted 
+   * @param {boolean} completed 
+   */
+  async function finishCountdown(roomId, slot, logId, startedAt, durationMinutes, durationFormatted, completed = true) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const now = Date.now();
+    const duration = now - startedAt;
+
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/isActive`] = false;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/finishedAt`] = now;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/duration`] = duration;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/durationFormatted`] = durationFormatted;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/durationMinutes`] = durationMinutes;
+    updates[`rooms/${roomId}/users/${slot}/logs/${logId}/completed`] = completed;
+    updates[`rooms/${roomId}/users/${slot}/activeTimer`] = null;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
+    await db.ref().update(updates);
+  }
+
+  /**
    * Start a Pomodoro timer session
    * @param {string} roomId 
    * @param {"userA"|"userB"} slot 
@@ -655,6 +731,8 @@ const DayRoomDB = (function () {
     addLog,
     startTimer,
     finishTimer,
+    startCountdown,
+    finishCountdown,
     startPomodoro,
     updatePomodoroPhase,
     finishPomodoro,

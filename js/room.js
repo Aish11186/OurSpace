@@ -94,6 +94,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const nextPomodoroPhaseBtn = document.getElementById("nextPomodoroPhaseBtn");
   const finishPomodoroBtn = document.getElementById("finishPomodoroBtn");
 
+  // Focus Countdown elements
+  const startCountdownOpenBtn = document.getElementById("startCountdownOpenBtn");
+  const countdownRunningState = document.getElementById("countdownRunningState");
+  const countdownPhaseBadge = document.getElementById("countdownPhaseBadge");
+  const activeCountdownTaskTitle = document.getElementById("activeCountdownTaskTitle");
+  const activeCountdownClock = document.getElementById("activeCountdownClock");
+  const finishCountdownBtn = document.getElementById("finishCountdownBtn");
+
   // My Controls: Logs & Quick Actions
   const customLogForm = document.getElementById("customLogForm");
   const customLogInput = document.getElementById("customLogInput");
@@ -143,6 +151,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const startTimerForm = document.getElementById("startTimerForm");
   const taskNameInput = document.getElementById("taskNameInput");
   const cancelStartTimerBtn = document.getElementById("cancelStartTimerBtn");
+
+  const startCountdownModal = document.getElementById("startCountdownModal");
+  const startCountdownForm = document.getElementById("startCountdownForm");
+  const countdownTaskNameInput = document.getElementById("countdownTaskNameInput");
+  const countdownMinutesInput = document.getElementById("countdownMinutesInput");
+  const cancelStartCountdownBtn = document.getElementById("cancelStartCountdownBtn");
+  const countdownPresetChips = document.querySelectorAll(".countdown-preset-chip");
 
   const startPomodoroModal = document.getElementById("startPomodoroModal");
   const startPomodoroForm = document.getElementById("startPomodoroForm");
@@ -564,6 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update My Controls timer if running
     if (activeTimerData && activeTimerData.startedAt) {
       const isPomodoro = activeTimerData.timerSubtype === "pomodoro" || activeTimerData.type === "pomodoro";
+      const isCountdown = activeTimerData.timerSubtype === "countdown" || activeTimerData.type === "countdown";
 
       if (isPomodoro) {
         const isBreak = activeTimerData.currentPhase === "break";
@@ -581,6 +597,23 @@ document.addEventListener("DOMContentLoaded", () => {
         if (remainingMs <= 0 && !isAutoProgressing && hasJoined && mySlot) {
           isAutoProgressing = true;
           advancePomodoroPhase().finally(() => {
+            setTimeout(() => { isAutoProgressing = false; }, 3000);
+          });
+        }
+      } else if (isCountdown) {
+        const durationMins = activeTimerData.durationMinutes || 25;
+        const totalDurationMs = durationMins * 60 * 1000;
+        const elapsed = now - activeTimerData.startedAt;
+        const remainingMs = Math.max(0, totalDurationMs - elapsed);
+
+        if (activeCountdownClock) {
+          activeCountdownClock.textContent = formatCountdown(remainingMs);
+        }
+
+        // Auto-finish when countdown reaches 0
+        if (remainingMs <= 0 && !isAutoProgressing && hasJoined && mySlot) {
+          isAutoProgressing = true;
+          handleFinishCountdown(true).finally(() => {
             setTimeout(() => { isAutoProgressing = false; }, 3000);
           });
         }
@@ -612,6 +645,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const phaseDurationMs = durationMins * 60 * 1000;
         const elapsedInPhase = now - phaseStartedAt;
         const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
+        el.textContent = formatCountdown(remainingMs) + " left";
+      }
+    });
+
+    // Update custom focus countdown badges in timelines
+    const activeCountdownBadges = document.querySelectorAll(".countdown-live-ticker");
+    activeCountdownBadges.forEach((el) => {
+      const startedAt = parseInt(el.getAttribute("data-started-at"), 10);
+      const durationMins = parseInt(el.getAttribute("data-duration-mins"), 10) || 25;
+      if (startedAt) {
+        const totalDurationMs = durationMins * 60 * 1000;
+        const elapsed = now - startedAt;
+        const remainingMs = Math.max(0, totalDurationMs - elapsed);
         el.textContent = formatCountdown(remainingMs) + " left";
       }
     });
@@ -1017,9 +1063,12 @@ document.addEventListener("DOMContentLoaded", () => {
       // Card Content based on type
       if (log.type === "timer") {
         const isPomodoro = log.timerSubtype === "pomodoro";
+        const isCountdown = log.timerSubtype === "countdown";
 
         if (isPomodoro) {
           nodeEl.classList.add("node-pomodoro");
+        } else if (isCountdown) {
+          nodeEl.classList.add("node-countdown");
         } else {
           nodeEl.classList.add("node-timer");
         }
@@ -1055,6 +1104,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 </span>
               </div>
             `);
+          } else if (isCountdown) {
+            const durationMins = log.durationMinutes || 25;
+            const totalDurationMs = durationMins * 60 * 1000;
+            const elapsed = Date.now() - log.startedAt;
+            const remainingMs = Math.max(0, totalDurationMs - elapsed);
+
+            cardEl.insertAdjacentHTML("beforeend", `
+              <div class="countdown-badge">
+                Focus Countdown · ${durationMins}m
+              </div>
+              <div class="timer-task-title">
+                <span><strong>"${escapeHtml(log.task || "Focus Countdown")}"</strong></span>
+              </div>
+              <div class="timer-active-badge">
+                <span>Focusing · </span>
+                <span class="ticker countdown-live-ticker" 
+                      data-started-at="${log.startedAt}" 
+                      data-duration-mins="${durationMins}">
+                  ${formatCountdown(remainingMs)} left
+                </span>
+              </div>
+            `);
           } else {
             const elapsedNow = Date.now() - log.startedAt;
             cardEl.insertAdjacentHTML("beforeend", `
@@ -1068,7 +1139,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `);
           }
         } else {
-          // Finished Timer / Pomodoro
+          // Finished Timer / Pomodoro / Countdown
           const startTimeStr = formatTime(log.startedAt);
           const finishTimeStr = formatTime(log.finishedAt || log.timestamp);
           const durationStr = log.durationFormatted || formatDurationShort(log.duration || 0);
@@ -1080,6 +1151,20 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
               <div class="timer-task-title">
                 <span><strong>${escapeHtml(log.task || "Pomodoro Session")}</strong></span>
+              </div>
+              <div class="timer-details">
+                <span>Started at ${startTimeStr}</span>
+                <span>Duration: ${durationStr}</span>
+                ${log.finishedAt ? `<span>Finished at ${finishTimeStr}</span>` : ""}
+              </div>
+            `);
+          } else if (isCountdown) {
+            cardEl.insertAdjacentHTML("beforeend", `
+              <div class="countdown-badge">
+                Focus Countdown · ${log.durationMinutes || 25}m
+              </div>
+              <div class="timer-task-title">
+                <span><strong>${escapeHtml(log.task || "Focus Countdown")}</strong></span>
               </div>
               <div class="timer-details">
                 <span>Started at ${startTimeStr}</span>
@@ -1125,9 +1210,11 @@ document.addEventListener("DOMContentLoaded", () => {
       timerIdleState.style.display = "none";
 
       const isPomodoro = activeTimerData.timerSubtype === "pomodoro" || activeTimerData.type === "pomodoro";
+      const isCountdown = activeTimerData.timerSubtype === "countdown" || activeTimerData.type === "countdown";
 
       if (isPomodoro) {
         timerRunningState.style.display = "none";
+        countdownRunningState.style.display = "none";
         pomodoroRunningState.style.display = "flex";
 
         const isBreak = activeTimerData.currentPhase === "break";
@@ -1153,9 +1240,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const remainingMs = Math.max(0, phaseDurationMs - elapsedInPhase);
 
         activePomodoroClock.textContent = formatCountdown(remainingMs);
+      } else if (isCountdown) {
+        timerRunningState.style.display = "none";
+        pomodoroRunningState.style.display = "none";
+        countdownRunningState.style.display = "flex";
+
+        const durationMins = activeTimerData.durationMinutes || 25;
+        countdownPhaseBadge.textContent = `Focus Countdown · ${durationMins}m`;
+        activeCountdownTaskTitle.textContent = activeTimerData.task || "Focus Countdown";
+
+        const totalDurationMs = durationMins * 60 * 1000;
+        const elapsed = Date.now() - activeTimerData.startedAt;
+        const remainingMs = Math.max(0, totalDurationMs - elapsed);
+
+        activeCountdownClock.textContent = formatCountdown(remainingMs);
       } else {
         // Standard Stopwatch
         pomodoroRunningState.style.display = "none";
+        countdownRunningState.style.display = "none";
         timerRunningState.style.display = "flex";
 
         activeTaskTitle.textContent = activeTimerData.task || "Task";
@@ -1168,6 +1270,7 @@ document.addEventListener("DOMContentLoaded", () => {
       timerIdleState.style.display = "block";
       timerRunningState.style.display = "none";
       pomodoroRunningState.style.display = "none";
+      countdownRunningState.style.display = "none";
     }
   }
 
@@ -1356,6 +1459,106 @@ document.addEventListener("DOMContentLoaded", () => {
     finishPomodoroBtn.addEventListener("click", () => {
       getAudioContext();
       handleFinishPomodoro();
+    });
+  }
+
+  // 15. Focus Countdown Handlers
+  if (startCountdownOpenBtn) {
+    startCountdownOpenBtn.addEventListener("click", () => {
+      getAudioContext();
+      requestNotificationPermission();
+      if (!hasJoined || !mySlot) {
+        showToast("Please enter your name first.");
+        return;
+      }
+      if (countdownTaskNameInput) countdownTaskNameInput.value = "";
+      if (startCountdownModal) startCountdownModal.classList.add("active");
+      setTimeout(() => {
+        if (countdownTaskNameInput) countdownTaskNameInput.focus();
+      }, 150);
+    });
+  }
+
+  if (cancelStartCountdownBtn && startCountdownModal) {
+    cancelStartCountdownBtn.addEventListener("click", () => {
+      startCountdownModal.classList.remove("active");
+    });
+  }
+
+  countdownPresetChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      getAudioContext();
+      countdownPresetChips.forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      const mins = chip.getAttribute("data-mins");
+      if (countdownMinutesInput && mins) {
+        countdownMinutesInput.value = mins;
+      }
+    });
+  });
+
+  if (countdownMinutesInput) {
+    countdownMinutesInput.addEventListener("input", () => {
+      const val = parseInt(countdownMinutesInput.value, 10);
+      countdownPresetChips.forEach(chip => {
+        const mins = parseInt(chip.getAttribute("data-mins"), 10);
+        chip.classList.toggle("active", mins === val);
+      });
+    });
+  }
+
+  if (startCountdownForm) {
+    startCountdownForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const taskName = countdownTaskNameInput ? countdownTaskNameInput.value.trim() : "";
+      if (!taskName) return;
+      const durationMins = parseInt(countdownMinutesInput ? countdownMinutesInput.value : 25, 10) || 25;
+
+      getAudioContext();
+      requestNotificationPermission();
+
+      try {
+        if (startCountdownModal) startCountdownModal.classList.remove("active");
+        await DayRoomDB.startCountdown(roomId, mySlot, taskName, durationMins);
+        showToast(`Started ${durationMins}m focus countdown: "${taskName}"`);
+      } catch (err) {
+        console.error("Start countdown error:", err);
+        showToast("Failed to start countdown. Check connection.");
+      }
+    });
+  }
+
+  async function handleFinishCountdown(autoCompleted = false) {
+    if (!activeTimerData || !mySlot) return;
+    const startedAt = activeTimerData.startedAt;
+    const logId = activeTimerData.logId;
+    const taskName = activeTimerData.task || "Focus Countdown";
+    const durationMins = activeTimerData.durationMinutes || 25;
+    const duration = Date.now() - startedAt;
+    const durationFormatted = formatDurationShort(duration);
+
+    try {
+      if (autoCompleted) {
+        notifyPhaseEnd(
+          "Focus Countdown Complete",
+          `Great work! Your ${durationMins}m focus timer for "${taskName}" is complete.`
+        );
+        showToast(`Focus timer completed: "${taskName}" (${durationMins}m)`);
+      } else {
+        showToast(`Completed timer. Total: ${durationFormatted}`);
+      }
+
+      await DayRoomDB.finishCountdown(roomId, mySlot, logId, startedAt, durationMins, durationFormatted, autoCompleted);
+    } catch (err) {
+      console.error("Finish countdown error:", err);
+      showToast("Failed to finish timer.");
+    }
+  }
+
+  if (finishCountdownBtn) {
+    finishCountdownBtn.addEventListener("click", () => {
+      getAudioContext();
+      handleFinishCountdown(false);
     });
   }
 

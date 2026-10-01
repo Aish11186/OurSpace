@@ -145,14 +145,19 @@
           <!-- State 1: Timer Idle -->
           <div class="start-timer-idle" id="timerIdleState">
             <button id="startTimerOpenBtn" class="btn-start-timer-main" type="button">
-              Start timer
+              Start stopwatch
             </button>
             <div class="timer-idle-divider">
               <span>or focus with</span>
             </div>
-            <button id="startPomodoroOpenBtn" class="btn-pomodoro-main" type="button">
-              Start Pomodoro session
-            </button>
+            <div class="timer-idle-options">
+              <button id="startCountdownOpenBtn" class="btn-countdown-main" type="button">
+                Focus countdown
+              </button>
+              <button id="startPomodoroOpenBtn" class="btn-pomodoro-main" type="button">
+                Pomodoro session
+              </button>
+            </div>
           </div>
 
           <!-- State 2: Stopwatch Running -->
@@ -187,6 +192,22 @@
                 Finish session
               </button>
             </div>
+          </div>
+
+          <!-- State 4: Custom Focus Countdown Running -->
+          <div class="countdown-running-box" id="countdownRunningState" style="display: none;">
+            <div class="countdown-phase-badge" id="countdownPhaseBadge">
+              Focus Countdown · 25m
+            </div>
+            <div class="timer-running-task" id="activeCountdownTaskTitle">
+              Focus session
+            </div>
+            <div class="timer-running-digits" id="activeCountdownClock">
+              25:00
+            </div>
+            <button id="finishCountdownBtn" class="btn-finish-timer" type="button">
+              Finish timer
+            </button>
           </div>
 
         </div>
@@ -486,6 +507,50 @@
         <div class="modal-footer">
           <button type="button" class="btn-ghost" id="cancelStartTimerBtn">Cancel</button>
           <button type="submit" class="btn-primary" id="confirmStartTimerBtn">Start timer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Start Focus Countdown Prompt -->
+  <div id="startCountdownModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="startCountdownTitle">
+    <div class="modal-card countdown-modal-card">
+      <div class="modal-header">
+        <h3 id="startCountdownTitle">Focus Countdown</h3>
+        <p>Set what you're working on and how many minutes to focus.</p>
+      </div>
+
+      <form id="startCountdownForm">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="countdownTaskNameInput" class="field-label">Focus Task Name</label>
+            <input type="text" id="countdownTaskNameInput" placeholder="e.g. Reading, Math homework, Thesis sprint..."
+              required maxlength="60" autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label for="countdownMinutesInput" class="field-label">Duration (Minutes)</label>
+            <div class="countdown-input-group">
+              <input type="number" id="countdownMinutesInput" min="1" max="720" value="25" required>
+              <span class="countdown-input-suffix">minutes</span>
+            </div>
+            
+            <div class="countdown-presets-grid" id="countdownPresetsGrid">
+              <button type="button" class="countdown-preset-chip" data-mins="10">10m</button>
+              <button type="button" class="countdown-preset-chip" data-mins="15">15m</button>
+              <button type="button" class="countdown-preset-chip active" data-mins="25">25m</button>
+              <button type="button" class="countdown-preset-chip" data-mins="30">30m</button>
+              <button type="button" class="countdown-preset-chip" data-mins="45">45m</button>
+              <button type="button" class="countdown-preset-chip" data-mins="60">60m</button>
+              <button type="button" class="countdown-preset-chip" data-mins="90">90m</button>
+              <button type="button" class="countdown-preset-chip" data-mins="120">120m</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" id="cancelStartCountdownBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="confirmStartCountdownBtn">Start Countdown</button>
         </div>
       </form>
     </div>
