@@ -640,7 +640,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Room Subscription
     DayRoomDB.subscribeRoom(
       roomId,
-      (data, exists) => {
+      async (data, exists) => {
         if (!exists) {
           // Room does not exist yet; create it
           DayRoomDB.createRoom(roomId).then(() => {
@@ -652,6 +652,18 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Check if room has been inactive for more than 30 hours
+        if (DayRoomDB.isRoomExpired(data)) {
+          console.log("Room is expired due to 30+ hours of inactivity. Auto-cleaning room data.");
+          try {
+            await DayRoomDB.resetExpiredRoom(roomId);
+            showToast("This room was inactive for over 30 hours and has been refreshed.");
+          } catch (err) {
+            console.error("Failed to reset expired room:", err);
+          }
+          return;
+        }
+
         currentRoomData = data;
         handleRoomDataUpdate(data);
       },
@@ -660,6 +672,13 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Connection issue with Firebase.");
       }
     );
+
+    // Heartbeat to keep active sessions alive
+    setInterval(() => {
+      if (hasJoined && roomId && DayRoomDB.isReady()) {
+        DayRoomDB.touchActivity(roomId);
+      }
+    }, 15 * 60 * 1000);
   }
 
   // 8. Handle Room Data & Slot Assignment

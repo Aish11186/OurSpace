@@ -6,6 +6,11 @@
 
 const DayRoomDB = (function () {
   /**
+   * 30 hours in milliseconds (30 * 60 * 60 * 1000)
+   */
+  const INACTIVITY_TIMEOUT_MS = 30 * 60 * 60 * 1000;
+
+  /**
    * Helper to safely get the Firebase Database instance
    */
   function getDb() {
@@ -20,6 +25,112 @@ const DayRoomDB = (function () {
    */
   function isReady() {
     return window.DayRoomFirebase && window.DayRoomFirebase.isConfigured() && getDb() !== null;
+  }
+
+  /**
+   * Calculate the most recent activity timestamp for a room
+   * Checks explicit lastActivity, createdAt, slot join timestamps, logs, messages, and todos.
+   * @param {Object} data 
+   * @returns {number}
+   */
+  function getLastActivityTime(data) {
+    if (!data) return 0;
+
+    let latest = data.lastActivity || data.createdAt || 0;
+
+    const users = data.users || {};
+    ["userA", "userB"].forEach((slot) => {
+      const u = users[slot];
+      if (u) {
+        if (u.joinedAt && u.joinedAt > latest) latest = u.joinedAt;
+        if (u.activeTimer && u.activeTimer.startedAt && u.activeTimer.startedAt > latest) {
+          latest = u.activeTimer.startedAt;
+        }
+        if (u.logs) {
+          Object.values(u.logs).forEach((log) => {
+            if (log.timestamp && log.timestamp > latest) latest = log.timestamp;
+            if (log.startedAt && log.startedAt > latest) latest = log.startedAt;
+            if (log.finishedAt && log.finishedAt > latest) latest = log.finishedAt;
+          });
+        }
+        if (u.todos) {
+          Object.values(u.todos).forEach((todo) => {
+            if (todo.createdAt && todo.createdAt > latest) latest = todo.createdAt;
+            if (todo.completedAt && todo.completedAt > latest) latest = todo.completedAt;
+          });
+        }
+      }
+    });
+
+    if (data.messages) {
+      Object.values(data.messages).forEach((msg) => {
+        if (msg.timestamp && msg.timestamp > latest) latest = msg.timestamp;
+      });
+    }
+
+    return latest;
+  }
+
+  /**
+   * Check if a room has been inactive for more than 30 hours
+   * @param {Object} data 
+   * @returns {boolean}
+   */
+  function isRoomExpired(data) {
+    if (!data) return false;
+    const lastActive = getLastActivityTime(data);
+    if (!lastActive) return false;
+    return (Date.now() - lastActive) > INACTIVITY_TIMEOUT_MS;
+  }
+
+  /**
+   * Reset / wipe all expired room data and re-initialize a fresh empty room
+   * @param {string} roomId 
+   * @returns {Promise<Object>}
+   */
+  async function resetExpiredRoom(roomId) {
+    const db = getDb();
+    if (!db) throw new Error("Firebase not initialized.");
+
+    const now = Date.now();
+    const freshData = {
+      createdAt: now,
+      lastActivity: now,
+      users: {
+        userA: {
+          id: "",
+          name: "",
+          joinedAt: 0,
+          activeTimer: null
+        },
+        userB: {
+          id: "",
+          name: "",
+          joinedAt: 0,
+          activeTimer: null
+        }
+      },
+      tools: {
+        waterTracker: false,
+        quickLogs: false
+      },
+      messages: {}
+    };
+
+    await db.ref(`rooms/${roomId}`).set(freshData);
+    return freshData;
+  }
+
+  /**
+   * Touch activity timestamp on active room
+   * @param {string} roomId 
+   */
+  async function touchActivity(roomId) {
+    const db = getDb();
+    if (!db) return;
+    try {
+      await db.ref(`rooms/${roomId}/lastActivity`).set(Date.now());
+    } catch (e) {}
   }
 
   /**
@@ -38,11 +149,17 @@ const DayRoomDB = (function () {
     // Check if room already exists
     const snapshot = await roomRef.once("value");
     if (snapshot.exists()) {
-      return true; // Already exists, proceed
+      const data = snapshot.val();
+      if (isRoomExpired(data)) {
+        await resetExpiredRoom(roomId);
+      }
+      return true;
     }
 
+    const now = Date.now();
     const initialData = {
-      createdAt: Date.now(),
+      createdAt: now,
+      lastActivity: now,
       users: {
         userA: {
           id: "",
@@ -69,7 +186,7 @@ const DayRoomDB = (function () {
   }
 
   /**
-   * Check if a room exists
+   * Check if a room exists and whether it is expired
    * @param {string} roomId 
    * @returns {Promise<boolean>}
    */
@@ -77,7 +194,13 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) return false;
     const snapshot = await db.ref(`rooms/${roomId}`).once("value");
-    return snapshot.exists();
+    if (!snapshot.exists()) return false;
+
+    const data = snapshot.val();
+    if (isRoomExpired(data)) {
+      await resetExpiredRoom(roomId);
+    }
+    return true;
   }
 
   /**
@@ -122,12 +245,14 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
-    const userRef = db.ref(`rooms/${roomId}/users/${slot}`);
-    await userRef.update({
-      id: userId,
-      name: name.trim(),
-      joinedAt: Date.now()
-    });
+    const now = Date.now();
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/id`] = userId;
+    updates[`rooms/${roomId}/users/${slot}/name`] = name.trim();
+    updates[`rooms/${roomId}/users/${slot}/joinedAt`] = now;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
+    await db.ref().update(updates);
   }
 
   /**
@@ -140,6 +265,7 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
+    const now = Date.now();
     const logsRef = db.ref(`rooms/${roomId}/users/${slot}/logs`);
     const newLogRef = logsRef.push();
 
@@ -147,10 +273,14 @@ const DayRoomDB = (function () {
       id: newLogRef.key,
       text: logData.text || "",
       type: logData.type || "custom", // "custom" | "quick" | "timer"
-      timestamp: Date.now()
+      timestamp: now
     };
 
-    await newLogRef.set(entry);
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/logs/${entry.id}`] = entry;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
+    await db.ref().update(updates);
     return entry;
   }
 
@@ -187,6 +317,7 @@ const DayRoomDB = (function () {
     const updates = {};
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}`] = timerLog;
     updates[`rooms/${roomId}/users/${slot}/activeTimer`] = activeTimerState;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
     return timerLog;
@@ -213,6 +344,7 @@ const DayRoomDB = (function () {
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}/duration`] = duration;
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}/durationFormatted`] = durationFormatted;
     updates[`rooms/${roomId}/users/${slot}/activeTimer`] = null;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
   }
@@ -268,6 +400,7 @@ const DayRoomDB = (function () {
     const updates = {};
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}`] = pomodoroLog;
     updates[`rooms/${roomId}/users/${slot}/activeTimer`] = activeTimerState;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
     return pomodoroLog;
@@ -294,6 +427,7 @@ const DayRoomDB = (function () {
     updates[`rooms/${roomId}/users/${slot}/activeTimer/currentCycle`] = nextCycle;
     updates[`rooms/${roomId}/users/${slot}/activeTimer/currentPhase`] = nextPhase;
     updates[`rooms/${roomId}/users/${slot}/activeTimer/phaseStartedAt`] = now;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
   }
@@ -323,6 +457,7 @@ const DayRoomDB = (function () {
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}/completedCycles`] = completedCycles;
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}/totalCycles`] = totalCycles;
     updates[`rooms/${roomId}/users/${slot}/activeTimer`] = null;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
   }
@@ -345,11 +480,13 @@ const DayRoomDB = (function () {
     const activeSnapshot = await db.ref(`rooms/${roomId}/users/${slot}/activeTimer`).once("value");
     const active = activeSnapshot.val();
 
+    const now = Date.now();
     const updates = {};
     updates[`rooms/${roomId}/users/${slot}/logs/${logId}`] = null;
     if (active && active.logId === logId) {
       updates[`rooms/${roomId}/users/${slot}/activeTimer`] = null;
     }
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
   }
@@ -363,9 +500,11 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
+    const now = Date.now();
     const updates = {};
     updates[`rooms/${roomId}/users/${slot}/logs`] = null;
     updates[`rooms/${roomId}/users/${slot}/activeTimer`] = null;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
   }
@@ -383,6 +522,7 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
+    const now = Date.now();
     const messagesRef = db.ref(`rooms/${roomId}/messages`);
     const newMsgRef = messagesRef.push();
 
@@ -392,14 +532,18 @@ const DayRoomDB = (function () {
       authorSlot: authorSlot,
       authorId: authorId,
       text: (text || "").trim(),
-      timestamp: Date.now()
+      timestamp: now
     };
 
     if (imageUrl) {
       messageData.imageUrl = imageUrl;
     }
 
-    await newMsgRef.set(messageData);
+    const updates = {};
+    updates[`rooms/${roomId}/messages/${newMsgRef.key}`] = messageData;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
+    await db.ref().update(updates);
     return messageData;
   }
 
@@ -413,6 +557,7 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
+    const now = Date.now();
     const todosRef = db.ref(`rooms/${roomId}/users/${slot}/todos`);
     const newTodoRef = todosRef.push();
 
@@ -420,11 +565,15 @@ const DayRoomDB = (function () {
       id: newTodoRef.key,
       text: (text || "").trim(),
       completed: false,
-      createdAt: Date.now(),
+      createdAt: now,
       completedAt: null
     };
 
-    await newTodoRef.set(todoItem);
+    const updates = {};
+    updates[`rooms/${roomId}/users/${slot}/todos/${newTodoRef.key}`] = todoItem;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
+    await db.ref().update(updates);
     return todoItem;
   }
 
@@ -443,9 +592,11 @@ const DayRoomDB = (function () {
       return;
     }
 
+    const now = Date.now();
     const updates = {};
     updates[`rooms/${roomId}/users/${slot}/todos/${todoId}/completed`] = isCompleted;
-    updates[`rooms/${roomId}/users/${slot}/todos/${todoId}/completedAt`] = isCompleted ? Date.now() : null;
+    updates[`rooms/${roomId}/users/${slot}/todos/${todoId}/completedAt`] = isCompleted ? now : null;
+    updates[`rooms/${roomId}/lastActivity`] = now;
 
     await db.ref().update(updates);
   }
@@ -464,8 +615,11 @@ const DayRoomDB = (function () {
       return;
     }
 
+    const now = Date.now();
     const updates = {};
     updates[`rooms/${roomId}/users/${slot}/todos/${todoId}`] = null;
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
     await db.ref().update(updates);
   }
 
@@ -479,13 +633,21 @@ const DayRoomDB = (function () {
     const db = getDb();
     if (!db) throw new Error("Firebase not initialized.");
 
+    const now = Date.now();
     const updates = {};
     updates[`rooms/${roomId}/tools/${toolName}`] = Boolean(isActive);
+    updates[`rooms/${roomId}/lastActivity`] = now;
+
     await db.ref().update(updates);
   }
 
   return {
     isReady,
+    INACTIVITY_TIMEOUT_MS,
+    getLastActivityTime,
+    isRoomExpired,
+    resetExpiredRoom,
+    touchActivity,
     createRoom,
     checkRoomExists,
     subscribeRoom,
